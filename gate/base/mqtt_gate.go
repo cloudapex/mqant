@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,7 +22,7 @@ import (
 	"github.com/liangdas/mqant/gate"
 	"github.com/liangdas/mqant/log"
 	"github.com/liangdas/mqant/module"
-	"github.com/liangdas/mqant/module/base"
+	basemodule "github.com/liangdas/mqant/module/base"
 	"github.com/liangdas/mqant/network"
 )
 
@@ -48,7 +48,8 @@ func (gt *Gate) SetJudgeGuest(judgeGuest func(session gate.Session) bool) error 
 	return nil
 }
 
-/**
+/*
+*
 设置Session信息持久化接口
 */
 func (gt *Gate) SetRouteHandler(router gate.RouteHandler) error {
@@ -56,7 +57,8 @@ func (gt *Gate) SetRouteHandler(router gate.RouteHandler) error {
 	return nil
 }
 
-/**
+/*
+*
 设置Session信息持久化接口
 */
 func (gt *Gate) SetStorageHandler(storage gate.StorageHandler) error {
@@ -64,7 +66,8 @@ func (gt *Gate) SetStorageHandler(storage gate.StorageHandler) error {
 	return nil
 }
 
-/**
+/*
+*
 设置客户端连接和断开的监听器
 */
 func (gt *Gate) SetSessionLearner(sessionLearner gate.SessionLearner) error {
@@ -72,7 +75,8 @@ func (gt *Gate) SetSessionLearner(sessionLearner gate.SessionLearner) error {
 	return nil
 }
 
-/**
+/*
+*
 设置创建客户端Agent的函数
 */
 func (gt *Gate) SetCreateAgent(cfunc func() gate.Agent) error {
@@ -115,7 +119,8 @@ func (gt *Gate) OnConfChanged(settings *conf.ModuleSettings) {
 
 }
 
-/**
+/*
+*
 自定义rpc参数序列化反序列化  Session
 */
 func (gt *Gate) Serialize(param interface{}) (ptype string, p []byte, err error) {
@@ -162,7 +167,8 @@ type SessionSerialize struct {
 	App module.App
 }
 
-/**
+/*
+*
 自定义rpc参数序列化反序列化  Session
 */
 func (gt *SessionSerialize) Serialize(param interface{}) (ptype string, p []byte, err error) {
@@ -215,7 +221,7 @@ func (gt *Gate) OnAppConfigurationLoaded(app module.App) {
 }
 func (gt *Gate) OnInit(subclass module.RPCModule, app module.App, settings *conf.ModuleSettings, opts ...gate.Option) {
 	gt.opts = gate.NewOptions(opts...)
-	gt.BaseModule.OnInit(subclass, app, settings, gt.opts.Opts...) //这是必须的
+	gt.BaseModule.Init(subclass, app, settings, gt.opts.Opts...) //这是必须的
 	if gt.opts.WsAddr == "" {
 		if WSAddr, ok := settings.Settings["WSAddr"]; ok {
 			gt.opts.WsAddr = WSAddr.(string)

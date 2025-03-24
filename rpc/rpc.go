@@ -17,8 +17,9 @@ package mqrpc
 
 import (
 	"context"
-	"github.com/liangdas/mqant/rpc/pb"
 	"reflect"
+
+	rpcpb "github.com/liangdas/mqant/rpc/pb"
 )
 
 // FunctionInfo handler接口信息
@@ -29,12 +30,12 @@ type FunctionInfo struct {
 	Goroutine bool
 }
 
-//MQServer 代理者
+// MQServer 代理者
 type MQServer interface {
 	Callback(callinfo *CallInfo) error
 }
 
-//CallInfo RPC的请求信息
+// CallInfo RPC的请求信息
 type CallInfo struct {
 	RPCInfo  *rpcpb.RPCInfo
 	Result   *rpcpb.ResultInfo
@@ -77,11 +78,11 @@ type GoroutineControl interface {
 // RPCServer 服务定义
 type RPCServer interface {
 	Addr() string
-	SetListener(listener RPCListener)
+	SetListener(listener RPCListener) // 设置监听器
 	SetGoroutineControl(control GoroutineControl)
 	GetExecuting() int64
-	Register(id string, f interface{})
-	RegisterGO(id string, f interface{})
+	Register(id string, f interface{})   // 注册RPC方法(单线程)
+	RegisterGO(id string, f interface{}) // 注册RPC方法(多线程)
 	Done() (err error)
 }
 

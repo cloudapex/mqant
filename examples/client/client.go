@@ -46,7 +46,7 @@ func (m *Server) GetApp() module.App {
 
 // OnInit() 初始化配置
 func (s *Server) OnInit(app module.App, settings *conf.ModuleSettings) {
-	s.BaseModule.OnInit(s, app, settings)
+	s.BaseModule.Init(s, app, settings)
 }
 
 // Run() 运行服务

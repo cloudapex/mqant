@@ -1,11 +1,14 @@
 package main
 
 import (
+	"time"
+
 	"github.com/liangdas/mqant"
 	"github.com/liangdas/mqant/conf"
 	"github.com/liangdas/mqant/examples/proto/examples/greeter"
 	"github.com/liangdas/mqant/module"
 	basemodule "github.com/liangdas/mqant/module/base"
+	"github.com/liangdas/mqant/server"
 )
 
 type Greeter struct {
@@ -48,7 +51,9 @@ func (m *Server) GetApp() module.App {
 
 // OnInit() 初始化配置
 func (s *Server) OnInit(app module.App, settings *conf.ModuleSettings) {
-	s.BaseModule.OnInit(s, app, settings)
+	s.BaseModule.Init(s, app, settings,
+		server.RegisterInterval(15*time.Second),
+		server.RegisterTTL(30*time.Second))
 	srv := &Greeter{}
 	greeter.RegisterGreeterTcpHandler(&s.BaseModule, srv)
 }

@@ -1,7 +1,14 @@
 package mock
 
-import ()
-import "github.com/liangdas/mqant/registry"
+import (
+	"github.com/liangdas/mqant/registry"
+)
+
+func NewRegistry(opts ...registry.Options) registry.Registry {
+	m := &mockRegistry{Services: make(map[string][]*registry.Service)}
+	m.init()
+	return m
+}
 
 type mockRegistry struct {
 	Services map[string][]*registry.Service
@@ -104,10 +111,4 @@ func (m *mockRegistry) Init(opts ...registry.Option) error {
 
 func (m *mockRegistry) Options() registry.Options {
 	return registry.Options{}
-}
-
-func NewRegistry(opts ...registry.Options) registry.Registry {
-	m := &mockRegistry{Services: make(map[string][]*registry.Service)}
-	m.init()
-	return m
 }

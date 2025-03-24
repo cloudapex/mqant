@@ -1,16 +1,17 @@
 package server
 
 import (
+	"strconv"
+	"strings"
+	"sync"
+
 	"github.com/liangdas/mqant/conf"
 	"github.com/liangdas/mqant/log"
 	"github.com/liangdas/mqant/module"
 	"github.com/liangdas/mqant/registry"
-	"github.com/liangdas/mqant/rpc"
-	"github.com/liangdas/mqant/rpc/base"
+	mqrpc "github.com/liangdas/mqant/rpc"
+	defaultrpc "github.com/liangdas/mqant/rpc/base"
 	"github.com/liangdas/mqant/utils/lib/addr"
-	"strconv"
-	"strings"
-	"sync"
 )
 
 type rpcServer struct {
@@ -64,8 +65,15 @@ func (s *rpcServer) OnInit(module module.Module, app module.App, settings *conf.
 	}
 	return nil
 }
-func (s *rpcServer) SetListener(listener mqrpc.RPCListener) {
-	s.server.SetListener(listener)
+
+func (s *rpcServer) SetListener(listener mqrpc.RPCListener) { s.server.SetListener(listener) }
+
+func (s *rpcServer) ID() string {
+	return s.id
+}
+
+func (s *rpcServer) String() string {
+	return "rpc"
 }
 func (s *rpcServer) Register(id string, f interface{}) {
 	if s.server == nil {
@@ -81,6 +89,7 @@ func (s *rpcServer) RegisterGO(id string, f interface{}) {
 	s.server.RegisterGO(id, f)
 }
 
+// ServiceRegister 向Registry注册自己
 func (s *rpcServer) ServiceRegister() error {
 	// parse address for host, port
 	config := s.Options()
@@ -162,6 +171,7 @@ func (s *rpcServer) ServiceRegister() error {
 	return nil
 }
 
+// ServiceRegister 向Registry注销自己
 func (s *rpcServer) ServiceDeregister() error {
 	config := s.Options()
 	var advt, host string
@@ -246,18 +256,4 @@ func (s *rpcServer) Stop() error {
 
 func (s *rpcServer) OnDestroy() error {
 	return s.Stop()
-}
-
-// Id Id
-// Deprecated: 因为命名规范问题函数将废弃,请用ID代替
-func (s *rpcServer) Id() string {
-	return s.id
-}
-
-func (s *rpcServer) ID() string {
-	return s.id
-}
-
-func (s *rpcServer) String() string {
-	return "rpc"
 }

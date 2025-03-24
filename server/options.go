@@ -2,8 +2,9 @@ package server
 
 import (
 	"context"
-	"github.com/liangdas/mqant/registry"
 	"time"
+
+	"github.com/liangdas/mqant/registry"
 )
 
 // Options Options
@@ -11,8 +12,8 @@ type Options struct {
 	Registry  registry.Registry
 	Metadata  map[string]string
 	Name      string
-	Address   string
-	Advertise string
+	Address   string // use host:port nats_server.addr 不重要
+	Advertise string // use host:port (优先) 不重要
 	ID        string
 	Version   string
 
@@ -60,14 +61,6 @@ func newOptions(opt ...Option) Options {
 func Name(n string) Option {
 	return func(o *Options) {
 		o.Name = n
-	}
-}
-
-// Id Unique server id
-// Deprecated: 因为命名规范问题函数将废弃,请用ID代替
-func Id(id string) Option {
-	return func(o *Options) {
-		o.ID = id
 	}
 }
 

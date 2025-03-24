@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -32,15 +33,11 @@ var (
 
 // LoadConfig 加载配置
 func LoadConfig(Path string) {
+	fmt.Println("AppServer configuration path :", Path)
+
 	// Read config.
 	if err := readFileInto(Path); err != nil {
 		panic(err)
-	}
-	if Conf.RPC.RPCExpired == 0 {
-		Conf.RPC.RPCExpired = 3
-	}
-	if Conf.RPC.MaxCoroutine == 0 {
-		Conf.RPC.MaxCoroutine = 100
 	}
 }
 
@@ -48,24 +45,24 @@ func LoadConfig(Path string) {
 type Config struct {
 	Log      map[string]interface{}
 	BI       map[string]interface{}
-	OP       map[string]interface{}
-	RPC      RPC `json:"rpc"`
+	OP       map[string]interface{} // 没用
+	RpcLog   bool
 	Module   map[string][]*ModuleSettings
 	Mqtt     Mqtt
 	Settings map[string]interface{}
 }
 
 // rpc 进程间通信配置
-type RPC struct {
-	MaxCoroutine int  //模块同时可以创建的最大协程数量默认是100
-	RPCExpired   int  `json:"RpcExpired"` //远程访问最后期限值 单位秒[默认5秒] 这个值指定了在客户端可以等待服务端多长时间来应答
-	Log          bool //是否打印RPC的日志
-}
+// type RPC struct {
+// 	MaxCoroutine int  //模块同时可以创建的最大协程数量默认是100
+// 	RPCExpired   int  `json:"RpcExpired"` //远程访问最后期限值 单位秒[默认3秒] 这个值指定了在客户端可以等待服务端多长时间来应答
+// 	Log          bool //是否打印RPC的日志
+// }
 
 // ModuleSettings 模块配置
 type ModuleSettings struct {
-	ID        string `json:"ID"`
-	Host      string
+	ID        string `json:"ID"` // 节点id(指@符号后面的值)
+	Host      string // 没啥用
 	ProcessID string
 	Settings  map[string]interface{}
 }

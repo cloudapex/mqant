@@ -18,28 +18,29 @@ type Options struct {
 	Nats        *nats.Conn
 	Version     string
 	Debug       bool
-	Parse       bool //是否由框架解析启动环境变量,默认为true
+	Parse       bool // 是否由框架解析启动环境变量,默认为true
 	WorkDir     string
 	ConfPath    string
 	LogDir      string
 	BIDir       string
-	ProcessID   string
-	KillWaitTTL time.Duration
-	Registry    registry.Registry
-	Selector    selector.Selector
-	// Register loop interval
-	RegisterInterval   time.Duration
-	RegisterTTL        time.Duration
-	ClientRPChandler   ClientRPCHandler
-	ServerRPCHandler   ServerRPCHandler
-	RpcCompleteHandler RpcCompleteHandler
-	RPCExpired         time.Duration
-	RPCMaxCoroutine    int
-	// 自定义日志文件名字
-	// 主要作用方便k8s映射日志不会被冲突，建议使用k8s pod实现
-	LogFileName FileNameHandler
+	ProcessID   string        // 进程分组ID(development)
+	KillWaitTTL time.Duration // 服务关闭超时强杀(60s)
+
+	Registry         registry.Registry // 注册服务发现(registry.DefaultRegistry)
+	Selector         selector.Selector // 节点选择器(在Registry基础上)(cache.NewSelector())
+	RegisterInterval time.Duration     // 服务注册发现续约频率(10s)
+	RegisterTTL      time.Duration     // 服务注册发现续约生命周期(20s)
+
+	ClientRPChandler   ClientRPCHandler   // 配置RPC调用方监控器(nil)
+	ServerRPCHandler   ServerRPCHandler   // 配置RPC服务方监控器(nil)
+	RpcCompleteHandler RpcCompleteHandler // 配置RPC执行结果监控器(nil)
+	RPCExpired         time.Duration      // RPC调用超时(10s)
+	RPCMaxCoroutine    int                // 默认0(不限制) 没用
+
+	// 自定义日志文件名字(主要作用方便k8s映射日志不会被冲突，建议使用k8s pod实现)
+	LogFileName FileNameHandler // 日志文件名称(默认):fmt.Sprintf("%s/%v%s%s", logdir, prefix, processID, suffix)
 	// 自定义BI日志名字
-	BIFileName FileNameHandler
+	BIFileName FileNameHandler //  BI文件名称(默认):fmt.Sprintf("%s/%v%s%s", logdir, prefix, processID, suffix)
 }
 
 type FileNameHandler func(logdir, prefix, processID, suffix string) string
@@ -174,14 +175,14 @@ func Parse(t bool) Option {
 	}
 }
 
-//RPC超时时间
+// RPC超时时间
 func RPCExpired(t time.Duration) Option {
 	return func(o *Options) {
 		o.RPCExpired = t
 	}
 }
 
-//单个节点RPC同时并发协程数
+// 单个节点RPC同时并发协程数
 func RPCMaxCoroutine(t int) Option {
 	return func(o *Options) {
 		o.RPCMaxCoroutine = t

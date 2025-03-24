@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,15 +15,16 @@ package defaultrpc
 
 import (
 	"fmt"
-	"google.golang.org/protobuf/proto"
-	"github.com/liangdas/mqant/log"
-	"github.com/liangdas/mqant/module"
-	"github.com/liangdas/mqant/rpc"
-	"github.com/liangdas/mqant/rpc/pb"
-	"github.com/nats-io/nats.go"
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/liangdas/mqant/log"
+	"github.com/liangdas/mqant/module"
+	mqrpc "github.com/liangdas/mqant/rpc"
+	rpcpb "github.com/liangdas/mqant/rpc/pb"
+	"github.com/nats-io/nats.go"
+	"google.golang.org/protobuf/proto"
 )
 
 type NatsServer struct {
@@ -82,7 +83,8 @@ func safeClose(ch chan bool) {
 	close(ch) // panic if ch is closed
 }
 
-/**
+/*
+*
 注销消息队列
 */
 func (s *NatsServer) Shutdown() (err error) {
@@ -104,7 +106,8 @@ func (s *NatsServer) Callback(callinfo *mqrpc.CallInfo) error {
 	return s.app.Transport().Publish(reply_to, body)
 }
 
-/**
+/*
+*
 接收请求信息
 */
 func (s *NatsServer) on_request_handle() (err error) {
@@ -195,7 +198,6 @@ func (s *NatsServer) Unmarshal(data []byte) (*rpcpb.RPCInfo, error) {
 		return &rpcInfo, err
 	}
 
-	panic("bug")
 }
 
 // goroutine safe

@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,15 +16,16 @@ package defaultrpc
 import (
 	"context"
 	"fmt"
-	"github.com/liangdas/mqant/log"
-	"github.com/liangdas/mqant/module"
-	"github.com/liangdas/mqant/rpc"
-	"github.com/liangdas/mqant/rpc/pb"
-	"github.com/liangdas/mqant/rpc/util"
-	"github.com/liangdas/mqant/utils/uuid"
-	"google.golang.org/protobuf/proto"
 	"os"
 	"time"
+
+	"github.com/liangdas/mqant/log"
+	"github.com/liangdas/mqant/module"
+	mqrpc "github.com/liangdas/mqant/rpc"
+	rpcpb "github.com/liangdas/mqant/rpc/pb"
+	argsutil "github.com/liangdas/mqant/rpc/util"
+	"github.com/liangdas/mqant/utils/uuid"
+	"google.golang.org/protobuf/proto"
 )
 
 type RPCClient struct {
@@ -146,7 +147,8 @@ func (c *RPCClient) CallNRArgs(_func string, ArgsType []string, args [][]byte) (
 	return c.nats_client.CallNR(callInfo)
 }
 
-/**
+/*
+*
 消息请求 需要回复
 */
 func (c *RPCClient) Call(ctx context.Context, _func string, params ...interface{}) (interface{}, string) {
@@ -167,13 +169,14 @@ func (c *RPCClient) Call(ctx context.Context, _func string, params ...interface{
 	}
 	start := time.Now()
 	r, errstr := c.CallArgs(ctx, _func, ArgsType, args)
-	if c.app.GetSettings().RPC.Log {
+	if c.app.Configs().RpcLog {
 		log.TInfo(span, "rpc Call ServerId = %v Func = %v Elapsed = %v Result = %v ERROR = %v", c.nats_client.session.GetID(), _func, time.Since(start), r, errstr)
 	}
 	return r, errstr
 }
 
-/**
+/*
+*
 消息请求 不需要回复
 */
 func (c *RPCClient) CallNR(_func string, params ...interface{}) (err error) {
@@ -193,7 +196,7 @@ func (c *RPCClient) CallNR(_func string, params ...interface{}) (err error) {
 	}
 	start := time.Now()
 	err = c.CallNRArgs(_func, ArgsType, args)
-	if c.app.GetSettings().RPC.Log {
+	if c.app.Configs().RpcLog {
 		log.TInfo(span, "rpc CallNR ServerId = %v Func = %v Elapsed = %v ERROR = %v", c.nats_client.session.GetID(), _func, time.Since(start), err)
 	}
 	return err

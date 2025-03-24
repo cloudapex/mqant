@@ -22,6 +22,16 @@ var (
 	prefix = "/mqant-registry"
 )
 
+func NewRegistry(opts ...registry.Option) registry.Registry {
+	e := &etcdv3Registry{
+		options:  registry.Options{},
+		register: make(map[string]uint64),
+		leases:   make(map[string]clientv3.LeaseID),
+	}
+	configure(e, opts...)
+	return e
+}
+
 type etcdv3Registry struct {
 	client  *clientv3.Client
 	options registry.Options
@@ -296,14 +306,4 @@ func (e *etcdv3Registry) Watch(opts ...registry.WatchOption) (registry.Watcher, 
 
 func (e *etcdv3Registry) String() string {
 	return "etcdv3"
-}
-
-func NewRegistry(opts ...registry.Option) registry.Registry {
-	e := &etcdv3Registry{
-		options:  registry.Options{},
-		register: make(map[string]uint64),
-		leases:   make(map[string]clientv3.LeaseID),
-	}
-	configure(e, opts...)
-	return e
 }

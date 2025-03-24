@@ -17,7 +17,7 @@ package basemodule
 
 import (
 	"fmt"
-	"github.com/liangdas/mqant/conf"
+
 	"github.com/liangdas/mqant/log"
 	"github.com/liangdas/mqant/module"
 )
@@ -59,9 +59,8 @@ func (mer *ModuleManager) Init(app module.App, ProcessID string) {
 	mer.app = app
 	mer.CheckModuleSettings() //配置文件规则检查
 	for i := 0; i < len(mer.mods); i++ {
-		for Type, modSettings := range app.GetSettings().Module {
-			if mer.mods[i].mi.GetType() == Type {
-				//匹配
+		for Type, modSettings := range app.Configs().Module {
+			if mer.mods[i].mi.GetType() == Type { // mer.mods匹配Conf.ModuleType
 				for _, setting := range modSettings {
 					//这里可能有BUG 公网IP和局域网IP处理方式可能不一样,先不管
 					if ProcessID == setting.ProcessID {
@@ -93,7 +92,7 @@ func (mer *ModuleManager) Init(app module.App, ProcessID string) {
 // 每一个类型的Module列表中ProcessID不能重复
 func (mer *ModuleManager) CheckModuleSettings() {
 	gid := map[string]string{} //用来保存全局ID-ModuleType
-	for Type, modSettings := range conf.Conf.Module {
+	for Type, modSettings := range mer.app.Configs().Module {
 		pid := map[string]string{} //用来保存模块中的 ProcessID-ID
 		for _, setting := range modSettings {
 			if Stype, ok := gid[setting.ID]; ok {
@@ -104,7 +103,7 @@ func (mer *ModuleManager) CheckModuleSettings() {
 			}
 
 			if id, ok := pid[setting.ProcessID]; ok {
-				//如果Id已经存在,说明有两个相同Id的模块,这种情况不能被允许,这里就直接抛异常 强制崩溃以免以后调试找不到问题
+				//如果ProcessID已经存在,说明有两个相同ProcessID的模块,这种情况不能被允许,这里就直接抛异常 强制崩溃以免以后调试找不到问题
 				panic(fmt.Sprintf("In the list of modules of type [%s], ProcessID (%s) has been used for ID module for (%s)", Type, setting.ProcessID, id))
 			} else {
 				pid[setting.ProcessID] = setting.ID

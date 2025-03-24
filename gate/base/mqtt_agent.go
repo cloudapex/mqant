@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,18 +19,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/liangdas/mqant/conf"
+	"runtime"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/liangdas/mqant/gate"
 	"github.com/liangdas/mqant/gate/base/mqtt"
 	"github.com/liangdas/mqant/log"
 	"github.com/liangdas/mqant/module"
 	"github.com/liangdas/mqant/network"
-	"github.com/liangdas/mqant/rpc/util"
-	"github.com/liangdas/mqant/utils"
-	"runtime"
-	"strings"
-	"sync"
-	"time"
+	argsutil "github.com/liangdas/mqant/rpc/util"
+	mqanttools "github.com/liangdas/mqant/utils"
 )
 
 //type resultInfo struct {
@@ -154,7 +154,7 @@ func (age *agent) Run() (err error) {
 	//id := info.GetUserName()
 	//psw := info.GetPassword()
 	//log.Debug("Read login pack %s %s %s %s",*id,*psw,info.GetProtocol(),info.GetVersion())
-	c := mqtt.NewClient(conf.Conf.Mqtt, age, age.r, age.w, age.conn, conn.GetKeepAlive(), age.gate.Options().MaxPackSize)
+	c := mqtt.NewClient(age.module.GetApp().Configs().Mqtt, age, age.r, age.w, age.conn, conn.GetKeepAlive(), age.gate.Options().MaxPackSize)
 	age.client = c
 	addr := age.conn.RemoteAddr()
 	age.session, err = NewSessionByMap(age.module.GetApp(), map[string]interface{}{

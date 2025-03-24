@@ -18,17 +18,18 @@ package basemodule
 import (
 	"context"
 	"fmt"
+	"os"
+
 	"github.com/liangdas/mqant/conf"
 	"github.com/liangdas/mqant/log"
 	"github.com/liangdas/mqant/module"
-	"github.com/liangdas/mqant/rpc"
-	"github.com/liangdas/mqant/rpc/pb"
+	mqrpc "github.com/liangdas/mqant/rpc"
+	rpcpb "github.com/liangdas/mqant/rpc/pb"
 	"github.com/liangdas/mqant/selector"
 	"github.com/liangdas/mqant/server"
 	"github.com/liangdas/mqant/service"
-	"github.com/liangdas/mqant/utils"
+	mqanttools "github.com/liangdas/mqant/utils"
 	"github.com/pkg/errors"
-	"os"
 )
 
 // BaseModule 默认的RPCModule实现
@@ -43,59 +44,14 @@ type BaseModule struct {
 	listener       mqrpc.RPCListener
 }
 
-// GetServerId GetServerId
-// Deprecated: 因为命名规范问题函数将废弃,请用GetServerID代替
-func (m *BaseModule) GetServerId() string {
-	//很关键,需要与配置文件中的Module配置对应
-	if m.service != nil && m.service.Server() != nil {
-		return m.service.Server().ID()
-	}
-	return "no server"
-}
-
-// GetServerID 节点ID
-func (m *BaseModule) GetServerID() string {
-	//很关键,需要与配置文件中的Module配置对应
-	if m.service != nil && m.service.Server() != nil {
-		return m.service.Server().ID()
-	}
-	return "no server"
-}
-
-// GetApp module.App
-func (m *BaseModule) GetApp() module.App {
-	return m.App
-}
-
-// GetSubclass 子类
-func (m *BaseModule) GetSubclass() module.RPCModule {
-	return m.subclass
-}
-
-// GetServer server.Server
-func (m *BaseModule) GetServer() server.Server {
-	return m.service.Server()
-}
-
-// OnConfChanged 当配置变更时调用
-func (m *BaseModule) OnConfChanged(settings *conf.ModuleSettings) {
-
-}
-
-// OnAppConfigurationLoaded 当应用配置加载完成时调用
-func (m *BaseModule) OnAppConfigurationLoaded(app module.App) {
-	m.App = app
-	//当App初始化时调用，这个接口不管这个模块是否在这个进程运行都会调用
-}
-
-// OnInit 当模块初始化时调用
-func (m *BaseModule) OnInit(subclass module.RPCModule, app module.App, settings *conf.ModuleSettings, opt ...server.Option) {
+// Init 模块初始化(在OnInit中调用)
+func (m *BaseModule) Init(subclass module.RPCModule, app module.App, settings *conf.ModuleSettings, opt ...server.Option) {
 	//初始化模块
 	m.App = app
 	m.subclass = subclass
 	m.settings = settings
-	//创建一个远程调用的RPC
 
+	//创建一个远程调用的RPC
 	opts := server.Options{
 		Metadata: map[string]string{},
 	}
@@ -119,13 +75,18 @@ func (m *BaseModule) OnInit(subclass module.RPCModule, app module.App, settings 
 	}
 
 	if len(opts.ID) == 0 {
-		opt = append(opt, server.ID(mqanttools.GenerateID().String()))
+		if settings.ID != "" {
+			opt = append(opt, server.ID(settings.ID))
+		} else {
+			opt = append(opt, server.ID(mqanttools.GenerateID().String()))
+		}
 	}
 
 	if len(opts.Version) == 0 {
 		opt = append(opt, server.Version(subclass.Version()))
 	}
-	server := server.NewServer(opt...)
+
+	server := server.NewServer(opt...) // opts.Address =  nats_server.addr
 	err := server.OnInit(subclass, app, settings)
 	if err != nil {
 		log.Warning("server OnInit fail id(%s) error(%s)", m.GetServerID(), err)
@@ -153,6 +114,49 @@ func (m *BaseModule) OnInit(subclass module.RPCModule, app module.App, settings 
 	m.GetServer().SetListener(m)
 }
 
+// GetApp module.App
+func (m *BaseModule) GetApp() module.App {
+	return m.App
+}
+
+// GetSubclass 子类
+func (m *BaseModule) GetSubclass() module.RPCModule {
+	return m.subclass
+}
+
+// GetServer server.Server
+func (m *BaseModule) GetServer() server.Server {
+	return m.service.Server()
+}
+
+// GetServerID 节点ID
+func (m *BaseModule) GetServerID() string {
+	//很关键,需要与配置文件中的Module配置对应
+	if m.service != nil && m.service.Server() != nil {
+		return m.service.Server().ID()
+	}
+	return "no server"
+}
+
+// GetModuleSettings  GetModuleSettings
+func (m *BaseModule) GetModuleSettings() *conf.ModuleSettings {
+	return m.settings
+}
+
+// OnConfChanged 当配置变更时调用(目前没用)
+func (m *BaseModule) OnConfChanged(settings *conf.ModuleSettings) {}
+
+// OnAppConfigurationLoaded 当应用配置加载完成时调用
+func (m *BaseModule) OnAppConfigurationLoaded(app module.App) {
+	m.App = app
+	//当App初始化时调用，这个接口不管这个模块是否在这个进程运行都会调用
+}
+
+// OnInit 当模块初始化时调用
+func (m *BaseModule) OnInit(app module.App, settings *conf.ModuleSettings) {
+	panic("Subclass needs to be implemented OnInit()")
+}
+
 // OnDestroy 当模块注销时调用
 func (m *BaseModule) OnDestroy() {
 	//注销模块
@@ -165,83 +169,41 @@ func (m *BaseModule) OnDestroy() {
 	_ = m.GetServer().OnDestroy()
 }
 
-// SetListener  mqrpc.RPCListener
-func (m *BaseModule) SetListener(listener mqrpc.RPCListener) {
-	m.listener = listener
+// GetRouteServer 获取服务实例(通过服务ID|服务类型,可设置选择器过滤)
+func (m *BaseModule) GetRouteServer(service string, opts ...selector.SelectOption) (s module.ServerSession, err error) {
+	return m.App.GetRouteServer(service, opts...)
 }
 
-// GetModuleSettings  GetModuleSettings
-func (m *BaseModule) GetModuleSettings() *conf.ModuleSettings {
-	return m.settings
+// GetServerByID 通过服务ID(moduleType@id)获取服务实例
+func (m *BaseModule) GetServerByID(serverID string) (module.ServerSession, error) {
+	return m.App.GetServerByID(serverID)
 }
 
-// GetRouteServer  GetRouteServer
-func (m *BaseModule) GetRouteServer(moduleType string, opts ...selector.SelectOption) (s module.ServerSession, err error) {
-	return m.App.GetRouteServer(moduleType, opts...)
+// GetServersByType 通过服务类型(moduleType)获取服务实例列表
+func (m *BaseModule) GetServersByType(serviceName string) []module.ServerSession {
+	return m.App.GetServersByType(serviceName)
 }
 
-// Invoke  Invoke
-func (m *BaseModule) Invoke(moduleType string, _func string, params ...interface{}) (result interface{}, err string) {
-	return m.App.Invoke(m.GetSubclass(), moduleType, _func, params...)
-}
-
-// RpcInvoke  RpcInvoke
-// Deprecated: 因为命名规范问题函数将废弃,请用Invoke代替
-func (m *BaseModule) RpcInvoke(moduleType string, _func string, params ...interface{}) (result interface{}, err string) {
-	return m.App.Invoke(m.GetSubclass(), moduleType, _func, params...)
-}
-
-// InvokeNR  InvokeNR
-func (m *BaseModule) InvokeNR(moduleType string, _func string, params ...interface{}) (err error) {
-	return m.App.InvokeNR(m.GetSubclass(), moduleType, _func, params...)
-}
-
-// RpcInvokeNR  RpcInvokeNR
-// Deprecated: 因为命名规范问题函数将废弃,请用InvokeNR代替
-func (m *BaseModule) RpcInvokeNR(moduleType string, _func string, params ...interface{}) (err error) {
-	return m.App.InvokeNR(m.GetSubclass(), moduleType, _func, params...)
-}
-
-// InvokeArgs  InvokeArgs
-func (m *BaseModule) InvokeArgs(moduleType string, _func string, ArgsType []string, args [][]byte) (result interface{}, err string) {
-	server, e := m.App.GetRouteServer(moduleType)
-	if e != nil {
-		err = e.Error()
-		return
-	}
-	return server.CallArgs(nil, _func, ArgsType, args)
-}
-
-// RpcInvokeArgs  RpcInvokeArgs
-// Deprecated: 因为命名规范问题函数将废弃,请用RpcInvokeArgs代替
-func (m *BaseModule) RpcInvokeArgs(moduleType string, _func string, ArgsType []string, args [][]byte) (result interface{}, err string) {
-	return m.InvokeArgs(moduleType, _func, ArgsType, args)
-}
-
-// InvokeNRArgs  InvokeNRArgs
-func (m *BaseModule) InvokeNRArgs(moduleType string, _func string, ArgsType []string, args [][]byte) (err error) {
-	server, err := m.App.GetRouteServer(moduleType)
-	if err != nil {
-		return
-	}
-	return server.CallNRArgs(_func, ArgsType, args)
-}
-
-// RpcInvokeNRArgs  RpcInvokeNRArgs
-// Deprecated: 因为命名规范问题函数将废弃,请用InvokeNRArgs代替
-func (m *BaseModule) RpcInvokeNRArgs(moduleType string, _func string, ArgsType []string, args [][]byte) (err error) {
-	return m.InvokeNRArgs(moduleType, _func, ArgsType, args)
+// GetServerBySelector 通过服务类型(moduleType)获取服务实例(可设置选择器)
+func (m *BaseModule) GetServerBySelector(serviceName string, opts ...selector.SelectOption) (module.ServerSession, error) {
+	return m.App.GetServerBySelector(serviceName, opts...)
 }
 
 // Call  Call
-func (m *BaseModule) Call(ctx context.Context, moduleType, _func string, param mqrpc.ParamOption, opts ...selector.SelectOption) (interface{}, string) {
-	return m.App.Call(ctx, moduleType, _func, param, opts...)
+func (m *BaseModule) Call(moduleType string, _func string, params mqrpc.ParamOption, opts ...selector.SelectOption) (interface{}, string) {
+	return m.App.Call(m.GetSubclass(), moduleType, _func, params, opts...)
 }
 
-// RpcCall  RpcCall
-// Deprecated: 因为命名规范问题函数将废弃,请用Call代替
-func (m *BaseModule) RpcCall(ctx context.Context, moduleType, _func string, param mqrpc.ParamOption, opts ...selector.SelectOption) (interface{}, string) {
-	return m.App.Call(ctx, moduleType, _func, param, opts...)
+// CallNR  CallNR
+func (m *BaseModule) CallNR(moduleType string, _func string, params ...interface{}) (err error) {
+	return m.App.CallNR(moduleType, _func, params...)
+}
+
+// ================= RPCListener[监听事件]
+
+// SetListener  mqrpc.RPCListener
+func (m *BaseModule) SetListener(listener mqrpc.RPCListener) {
+	m.listener = listener
 }
 
 // NoFoundFunction  当hander未找到时调用
@@ -283,10 +245,4 @@ func (m *BaseModule) OnComplete(fn string, callInfo *mqrpc.CallInfo, result *rpc
 	if m.listener != nil {
 		m.listener.OnComplete(fn, callInfo, result, execTime)
 	}
-}
-
-// GetExecuting GetExecuting
-func (m *BaseModule) GetExecuting() int64 {
-	return 0
-	//return m.GetServer().GetRPCServer().GetExecuting()
 }
