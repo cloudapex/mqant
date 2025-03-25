@@ -14,19 +14,6 @@ import (
 	"github.com/liangdas/mqant/utils/lib/addr"
 )
 
-type server struct {
-	exit chan chan error
-
-	sync.RWMutex
-	opts Options
-	// used for first registration
-	registered bool
-	server     mqrpc.RPCServer
-	id         string
-	// graceful exit
-	wg sync.WaitGroup
-}
-
 func newServer(opts ...Option) Server {
 	options := newOptions(opts...)
 	return &server{
@@ -35,24 +22,33 @@ func newServer(opts ...Option) Server {
 	}
 }
 
+type server struct {
+	exit chan chan error
+
+	sync.RWMutex
+	opts Options
+	// used for first registration
+	registered bool
+	server     mqrpc.RPCServer
+	id         string // 节点ID
+	// graceful exit
+	wg sync.WaitGroup
+}
+
+func (s *server) ID() string {
+	return s.id
+}
 func (s *server) Options() Options {
 	s.RLock()
 	opts := s.opts
 	s.RUnlock()
 	return opts
 }
-
-func (s *server) Init(opts ...Option) error {
-	s.Lock()
-	for _, opt := range opts {
-		opt(&s.opts)
-	}
-	// update internal server
-
-	s.Unlock()
-	return nil
+func (s *server) UpdMetadata(key, val string) {
+	s.RLock()
+	s.opts.Metadata[key] = val
+	s.RUnlock()
 }
-
 func (s *server) OnInit(module module.Module, app module.App, settings *conf.ModuleSettings) error {
 	server, err := defaultrpc.NewRPCServer(app, module) //默认会创建一个本地的RPC
 	if err != nil {
@@ -65,16 +61,11 @@ func (s *server) OnInit(module module.Module, app module.App, settings *conf.Mod
 	}
 	return nil
 }
-
+func (s *server) OnDestroy() error {
+	return s.Stop()
+}
 func (s *server) SetListener(listener mqrpc.RPCListener) { s.server.SetListener(listener) }
 
-func (s *server) ID() string {
-	return s.id
-}
-
-func (s *server) String() string {
-	return "rpc"
-}
 func (s *server) Register(id string, f interface{}) {
 	if s.server == nil {
 		panic("invalid RPCServer")
@@ -254,6 +245,6 @@ func (s *server) Stop() error {
 	return nil
 }
 
-func (s *server) OnDestroy() error {
-	return s.Stop()
+func (s *server) String() string {
+	return "rpc"
 }

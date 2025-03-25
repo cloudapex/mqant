@@ -99,7 +99,6 @@ func (m *BaseModule) Init(subclass module.RPCModule, app module.App, settings *c
 	m.serviceStopeds = make(chan bool)
 	m.service = service.NewService(
 		service.Server(server),
-		service.RegisterTTL(app.Options().RegisterTTL),
 		service.RegisterInterval(app.Options().RegisterInterval),
 		service.Context(ctx),
 	)

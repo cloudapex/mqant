@@ -12,19 +12,22 @@ import (
 
 // Server Server
 type Server interface {
+	ID() string // 服务节点ID
 	Options() Options
+	UpdMetadata(key, val string) // 更新元数据(正常需要等到下次注册时生效,如果要立即生效还需要调用ServiceRegister)
 	OnInit(module module.Module, app module.App, settings *conf.ModuleSettings) error
-	Init(...Option) error
+	OnDestroy() error
+
+	Register(id string, f interface{})   // 注册RPC方法
+	RegisterGO(id string, f interface{}) // 注册RPC方法
 	SetListener(listener mqrpc.RPCListener)
-	Register(id string, f interface{})
-	RegisterGO(id string, f interface{})
-	ServiceRegister() error
-	ServiceDeregister() error
+	ServiceRegister() error   // 向Registry注册自己
+	ServiceDeregister() error // 向Registry注销自己
+
 	Start() error
 	Stop() error
-	OnDestroy() error
+
 	String() string
-	ID() string
 }
 
 // Message RPC消息头

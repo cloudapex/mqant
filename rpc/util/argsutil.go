@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,13 +16,14 @@ package argsutil
 import (
 	"encoding/json"
 	"fmt"
-	"google.golang.org/protobuf/proto"
-	"github.com/liangdas/mqant/log"
-	"github.com/liangdas/mqant/module"
-	"github.com/liangdas/mqant/rpc"
-	"github.com/liangdas/mqant/utils"
 	"reflect"
 	"strings"
+
+	"github.com/liangdas/mqant/log"
+	"github.com/liangdas/mqant/module"
+	mqrpc "github.com/liangdas/mqant/rpc"
+	mqanttools "github.com/liangdas/mqant/utils"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -39,6 +40,7 @@ var (
 	TRACE   = "trace"   //log.TraceSpanImp
 	Marshal = "marshal" //mqrpc.Marshaler
 	Proto   = "proto"   //proto.Message
+	Gob     = "gob"     //go gob
 )
 
 func ArgsTypeAnd2Bytes(app module.App, arg interface{}) (string, []byte, error) {
@@ -127,6 +129,13 @@ func ArgsTypeAnd2Bytes(app module.App, arg interface{}) (string, []byte, error) 
 				}
 				return fmt.Sprintf("%v@%v", Proto, reflect.TypeOf(arg)), b, nil
 			}
+			// 默认使用gob编码
+			// var buf bytes.Buffer
+			// encoder := gob.NewEncoder(&buf)
+			// if err := encoder.Encode(arg); err != nil {
+			// 	return "", nil, fmt.Errorf("args [%s] gob encode(default) error %v", reflect.TypeOf(arg), err)
+			// }
+			// return fmt.Sprintf("%v@%v", Gob, reflect.TypeOf(arg)), buf.Bytes(), nil
 		}
 
 		return "", nil, fmt.Errorf("Args2Bytes [%s] not registered to app.addrpcserialize(...) structure type", reflect.TypeOf(arg))

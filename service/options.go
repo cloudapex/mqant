@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/liangdas/mqant/registry"
 	"github.com/liangdas/mqant/server"
 )
 
@@ -22,8 +21,8 @@ type Option func(*Options)
 
 // Options Options
 type Options struct {
-	Server   server.Server
-	Registry registry.Registry
+	Server server.Server
+	//Registry registry.Registry
 
 	// Register loop interval
 	RegisterInterval time.Duration
@@ -41,8 +40,8 @@ type Options struct {
 
 func newOptions(opts ...Option) Options {
 	opt := Options{
-		Registry: registry.DefaultRegistry,
-		Context:  context.Background(),
+		//Registry: registry.DefaultRegistry,
+		Context: context.Background(),
 	}
 
 	for _, o := range opts {
@@ -70,48 +69,48 @@ func Server(s server.Server) Option {
 
 // Registry sets the registry for the service
 // and the underlying components
-func Registry(r registry.Registry) Option {
-	return func(o *Options) {
-		o.Registry = r
-		// Update Client and Server
-		//o.Client.Init(client.Registry(r))
-		o.Server.Init(server.Registry(r))
-		// Update Selector
-		//o.Client.Options().Selector.Init(selector.Registry(r))
-		// Update Broker
-		//o.Broker.Init(broker.Registry(r))
-	}
-}
+// func Registry(r registry.Registry) Option {
+// 	return func(o *Options) {
+// 		o.Registry = r
+// 		// Update Client and Server
+// 		//o.Client.Init(client.Registry(r))
+// 		o.Server.Init(server.Registry(r))
+// 		// Update Selector
+// 		//o.Client.Options().Selector.Init(selector.Registry(r))
+// 		// Update Broker
+// 		//o.Broker.Init(broker.Registry(r))
+// 	}
+// }
 
 // Convenience options
 
 // Name of the service
-func Name(n string) Option {
-	return func(o *Options) {
-		o.Server.Init(server.Name(n))
-	}
-}
+// func Name(n string) Option {
+// 	return func(o *Options) {
+// 		o.Server.Init(server.Name(n))
+// 	}
+// }
 
 // Version of the service
-func Version(v string) Option {
-	return func(o *Options) {
-		o.Server.Init(server.Version(v))
-	}
-}
+// func Version(v string) Option {
+// 	return func(o *Options) {
+// 		o.Server.Init(server.Version(v))
+// 	}
+// }
 
 // Metadata associated with the service
-func Metadata(md map[string]string) Option {
-	return func(o *Options) {
-		o.Server.Init(server.Metadata(md))
-	}
-}
+// func Metadata(md map[string]string) Option {
+// 	return func(o *Options) {
+// 		o.Server.Init(server.Metadata(md))
+// 	}
+// }
 
 // RegisterTTL specifies the TTL to use when registering the service
-func RegisterTTL(t time.Duration) Option {
-	return func(o *Options) {
-		o.Server.Init(server.RegisterTTL(t))
-	}
-}
+// func RegisterTTL(t time.Duration) Option {
+// 	return func(o *Options) {
+// 		o.Server.Init(server.RegisterTTL(t))
+// 	}
+// }
 
 // RegisterInterval specifies the interval on which to re-register
 func RegisterInterval(t time.Duration) Option {
