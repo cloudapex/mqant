@@ -46,7 +46,7 @@ type Options struct {
 type FileNameHandler func(logdir, prefix, processID, suffix string) string
 
 // ClientRPCHandler 调用方RPC监控
-type ClientRPCHandler func(app App, server registry.Node, rpcinfo *rpcpb.RPCInfo, result interface{}, err string, exec_time int64)
+type ClientRPCHandler func(app App, server registry.Node, rpcinfo *rpcpb.RPCInfo, result interface{}, err error, exec_time int64)
 
 // ServerRPCHandler 服务方RPC监控
 type ServerRPCHandler func(app App, module Module, callInfo *mqrpc.CallInfo)

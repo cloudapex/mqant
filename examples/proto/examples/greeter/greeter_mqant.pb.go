@@ -43,9 +43,7 @@ func (proxy *ClientProxyService) Hello(req *Request) (rsp *Response, err error) 
 		return nil, ClientProxyIsNil
 	}
 	rsp = &Response{}
-	err = mqrpc.Proto(rsp, func() (reply interface{}, err interface{}) {
-		return proxy.cli.Call(context.TODO(), proxy.name, "hello", mqrpc.Param(req))
-	})
+	err = mqrpc.Proto(rsp, mqrpc.RpcResult(proxy.cli.Call(context.TODO(), proxy.name, "hello", mqrpc.Param(req))))
 	return rsp, err
 }
 func (proxy *ClientProxyService) Stream(req *Request) (rsp *Response, err error) {
@@ -53,8 +51,6 @@ func (proxy *ClientProxyService) Stream(req *Request) (rsp *Response, err error)
 		return nil, ClientProxyIsNil
 	}
 	rsp = &Response{}
-	err = mqrpc.Proto(rsp, func() (reply interface{}, err interface{}) {
-		return proxy.cli.Call(context.TODO(), proxy.name, "stream", mqrpc.Param(req))
-	})
+	err = mqrpc.Proto(rsp, mqrpc.RpcResult(proxy.cli.Call(context.TODO(), proxy.name, "stream", mqrpc.Param(req))))
 	return rsp, err
 }

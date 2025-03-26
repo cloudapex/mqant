@@ -180,9 +180,8 @@ func (app *DefaultApp) AddRPCSerialize(name string, Interface module.RPCSerializ
 	return nil
 }
 
-// Watcher Watcher ???
+// Watcher 监视服务节点注销(ServerSession删除掉)
 func (app *DefaultApp) Watcher(node *registry.Node) {
-	//把注销的服务ServerSession删除掉
 	session, ok := app.serverList.Load(node.Id)
 	if ok && session != nil {
 		session.(module.ServerSession).GetRPC().Done()
@@ -303,11 +302,10 @@ func (app *DefaultApp) GetServerBySelector(serviceName string, opts ...selector.
 }
 
 // Call RPC调用(需要等待结果)
-func (app *DefaultApp) Call(ctx context.Context, moduleType, _func string, param mqrpc.ParamOption, opts ...selector.SelectOption) (result interface{}, errstr string) {
+func (app *DefaultApp) Call(ctx context.Context, moduleType, _func string, param mqrpc.ParamOption, opts ...selector.SelectOption) (result interface{}, err error) {
 	server, err := app.GetRouteServer(moduleType, opts...)
 	if err != nil {
-		errstr = err.Error()
-		return
+		return nil, err
 	}
 	return server.Call(ctx, _func, param()...)
 }

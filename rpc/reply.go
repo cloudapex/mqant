@@ -3,13 +3,27 @@ package mqrpc
 import (
 	"errors"
 	"fmt"
-	"google.golang.org/protobuf/proto"
 	"reflect"
 	"strconv"
+
+	"google.golang.org/protobuf/proto"
 )
 
 // ErrNil ErrNil
 var ErrNil = errors.New("mqrpc: nil returned")
+
+type callResult struct {
+	Reply interface{}
+	Error error
+}
+
+// 拼装CallResult
+func RpcResult(reply interface{}, error error) callResult {
+	return callResult{
+		Reply: reply,
+		Error: error,
+	}
+}
 
 // Int Int
 func Int(reply interface{}, err interface{}) (int, error) {
@@ -40,11 +54,11 @@ func Int(reply interface{}, err interface{}) (int, error) {
 // not equal to nil, then Int returns 0, err. Otherwise, Int64 converts the
 // reply to an int64 as follows:
 //
-//  Reply type    Result
-//  integer       reply, nil
-//  bulk string   parsed reply, nil
-//  nil           0, ErrNil
-//  other         0, error
+//	Reply type    Result
+//	integer       reply, nil
+//	bulk string   parsed reply, nil
+//	nil           0, ErrNil
+//	other         0, error
 func Int64(reply interface{}, err interface{}) (int64, error) {
 	switch e := err.(type) {
 	case string:
@@ -69,10 +83,10 @@ func Int64(reply interface{}, err interface{}) (int64, error) {
 // not equal to nil, then Float64 returns 0, err. Otherwise, Float64 converts
 // the reply to an int as follows:
 //
-//  Reply type    Result
-//  bulk string   parsed reply, nil
-//  nil           0, ErrNil
-//  other         0, error
+//	Reply type    Result
+//	bulk string   parsed reply, nil
+//	nil           0, ErrNil
+//	other         0, error
 func Float64(reply interface{}, err interface{}) (float64, error) {
 	switch e := err.(type) {
 	case string:
@@ -97,11 +111,11 @@ func Float64(reply interface{}, err interface{}) (float64, error) {
 // equal to nil, then String returns "", err. Otherwise String converts the
 // reply to a string as follows:
 //
-//  Reply type      Result
-//  bulk string     string(reply), nil
-//  simple string   reply, nil
-//  nil             "",  ErrNil
-//  other           "",  error
+//	Reply type      Result
+//	bulk string     string(reply), nil
+//	simple string   reply, nil
+//	nil             "",  ErrNil
+//	other           "",  error
 func String(reply interface{}, err interface{}) (string, error) {
 	switch e := err.(type) {
 	case string:
@@ -126,11 +140,11 @@ func String(reply interface{}, err interface{}) (string, error) {
 // is not equal to nil, then Bytes returns nil, err. Otherwise Bytes converts
 // the reply to a slice of bytes as follows:
 //
-//  Reply type      Result
-//  bulk string     reply, nil
-//  simple string   []byte(reply), nil
-//  nil             nil, ErrNil
-//  other           nil, error
+//	Reply type      Result
+//	bulk string     reply, nil
+//	simple string   []byte(reply), nil
+//	nil             nil, ErrNil
+//	other           nil, error
 func Bytes(reply interface{}, err interface{}) ([]byte, error) {
 	switch e := err.(type) {
 	case string:
@@ -216,26 +230,18 @@ func InterfaceMap(reply interface{}, err interface{}) (map[string]interface{}, e
 }
 
 // Marshal Marshal
-func Marshal(mrsp interface{}, ff func() (reply interface{}, err interface{})) error {
-	reply, err := ff()
-	switch e := err.(type) {
-	case string:
-		if err != "" {
-			return fmt.Errorf(e)
-		}
-	case error:
-		if err != nil {
-			return e
-		}
+func Marshal(reply interface{}, ret callResult) error {
+	if ret.Error != nil {
+		return ret.Error
 	}
 
-	rv := reflect.ValueOf(mrsp)
+	rv := reflect.ValueOf(reply)
 	if rv.Kind() != reflect.Ptr {
 		//不是指针
 		return fmt.Errorf("mrsp [%v] not *mqrpc.marshaler pointer type", rv.Type())
 	}
-	if v2, ok := mrsp.(Marshaler); ok {
-		switch r := reply.(type) {
+	if v2, ok := reply.(Marshaler); ok {
+		switch r := ret.Reply.(type) {
 		case []byte:
 			err := v2.Unmarshal(r)
 			if err != nil {
@@ -248,30 +254,21 @@ func Marshal(mrsp interface{}, ff func() (reply interface{}, err interface{})) e
 	} else {
 		return fmt.Errorf("mrsp [%v] not *mqrpc.marshaler type", rv.Type())
 	}
-	return fmt.Errorf("mqrpc: unexpected type for %v, got type %T", reflect.ValueOf(reply), reply)
+	return fmt.Errorf("mqrpc: unexpected type for %v, got type %T", reflect.ValueOf(ret.Reply), ret.Reply)
 }
 
 // Proto Proto
-func Proto(mrsp interface{}, ff func() (reply interface{}, err interface{})) error {
-	reply, err := ff()
-	switch e := err.(type) {
-	case string:
-		if err != "" {
-			return fmt.Errorf(e)
-		}
-	case error:
-		if err != nil {
-			return e
-		}
+func Proto(reply interface{}, ret callResult) error {
+	if ret.Error != nil {
+		return ret.Error
 	}
 
-	rv := reflect.ValueOf(mrsp)
-	if rv.Kind() != reflect.Ptr {
-		//不是指针
+	rv := reflect.ValueOf(reply)
+	if rv.Kind() != reflect.Ptr { //不是指针
 		return fmt.Errorf("mrsp [%v] not *proto.Message pointer type", rv.Type())
 	}
-	if v2, ok := mrsp.(proto.Message); ok {
-		switch r := reply.(type) {
+	if v2, ok := reply.(proto.Message); ok {
+		switch r := ret.Reply.(type) {
 		case []byte:
 			err := proto.Unmarshal(r, v2)
 			if err != nil {
@@ -284,5 +281,5 @@ func Proto(mrsp interface{}, ff func() (reply interface{}, err interface{})) err
 	} else {
 		return fmt.Errorf("mrsp [%v] not *proto.Message type", rv.Type())
 	}
-	return fmt.Errorf("mqrpc: unexpected type for %v, got type %T", reflect.ValueOf(reply), reply)
+	return fmt.Errorf("mqrpc: unexpected type for %v, got type %T", reflect.ValueOf(ret.Reply), ret.Reply)
 }

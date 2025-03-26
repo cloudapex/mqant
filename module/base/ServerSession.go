@@ -17,10 +17,11 @@ package basemodule
 
 import (
 	"context"
+
 	"github.com/liangdas/mqant/module"
 	"github.com/liangdas/mqant/registry"
-	"github.com/liangdas/mqant/rpc"
-	"github.com/liangdas/mqant/rpc/base"
+	mqrpc "github.com/liangdas/mqant/rpc"
+	defaultrpc "github.com/liangdas/mqant/rpc/base"
 )
 
 // NewServerSession 创建一个节点实例
@@ -49,19 +50,10 @@ func (c *serverSession) GetID() string {
 	return c.node.Id
 }
 
-// Deprecated: 因为命名规范问题函数将废弃,请用GetID代替
-func (c *serverSession) GetId() string {
-	return c.node.Id
-}
 func (c *serverSession) GetName() string {
 	return c.name
 }
 func (c *serverSession) GetRPC() mqrpc.RPCClient {
-	return c.rpc
-}
-
-// Deprecated: 因为命名规范问题函数将废弃,请用GetRPC代替
-func (c *serverSession) GetRpc() mqrpc.RPCClient {
 	return c.rpc
 }
 
@@ -77,30 +69,22 @@ func (c *serverSession) SetNode(node *registry.Node) (err error) {
 	return
 }
 
-/**
-消息请求 需要回复
-*/
-func (c *serverSession) Call(ctx context.Context, _func string, params ...interface{}) (interface{}, string) {
+// 消息请求 需要回复
+func (c *serverSession) Call(ctx context.Context, _func string, params ...interface{}) (interface{}, error) {
 	return c.rpc.Call(ctx, _func, params...)
 }
 
-/**
-消息请求 不需要回复
-*/
+// 消息请求 不需要回复
 func (c *serverSession) CallNR(_func string, params ...interface{}) (err error) {
 	return c.rpc.CallNR(_func, params...)
 }
 
-/**
-消息请求 需要回复
-*/
-func (c *serverSession) CallArgs(ctx context.Context, _func string, ArgsType []string, args [][]byte) (interface{}, string) {
+// 消息请求 需要回复
+func (c *serverSession) CallArgs(ctx context.Context, _func string, ArgsType []string, args [][]byte) (interface{}, error) {
 	return c.rpc.CallArgs(ctx, _func, ArgsType, args)
 }
 
-/**
-消息请求 不需要回复
-*/
+// 消息请求 不需要回复
 func (c *serverSession) CallNRArgs(_func string, ArgsType []string, args [][]byte) (err error) {
 	return c.rpc.CallNRArgs(_func, ArgsType, args)
 }

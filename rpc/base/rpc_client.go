@@ -52,7 +52,10 @@ func (c *RPCClient) Done() (err error) {
 	return
 }
 
-func (c *RPCClient) CallArgs(ctx context.Context, _func string, ArgsType []string, args [][]byte) (r interface{}, e string) {
+func (c *RPCClient) CallArgs(ctx context.Context, _func string, ArgsType []string, args [][]byte) (interface{}, error) {
+	var err error
+	var result interface{}
+
 	caller, _ := os.Hostname()
 	if ctx != nil {
 		cr, ok := ctx.Value("caller").(string)
@@ -76,39 +79,41 @@ func (c *RPCClient) CallArgs(ctx context.Context, _func string, ArgsType []strin
 		//异常日志都应该打印
 		if c.app.Options().ClientRPChandler != nil {
 			exec_time := time.Since(start).Nanoseconds()
-			c.app.Options().ClientRPChandler(c.app, *c.nats_client.session.GetNode(), rpcInfo, r, e, exec_time)
+			c.app.Options().ClientRPChandler(c.app, *c.nats_client.session.GetNode(), rpcInfo, result, err, exec_time)
 		}
 	}()
 	callInfo := &mqrpc.CallInfo{
 		RPCInfo: rpcInfo,
 	}
 	callback := make(chan *rpcpb.ResultInfo, 1)
-	var err error
 	//优先使用本地rpc
 	//if c.local_client != nil {
 	//	err = c.local_client.Call(*callInfo, callback)
 	//} else
 	err = c.nats_client.Call(callInfo, callback)
 	if err != nil {
-		return nil, err.Error()
+		return nil, err
 	}
 	if ctx == nil {
-		ctx, _ = context.WithTimeout(context.TODO(), c.app.Options().RPCExpired)
+		_ctx, _cancel := context.WithTimeout(context.TODO(), c.app.Options().RPCExpired)
+		ctx = _ctx
+		defer _cancel()
 	}
 	select {
 	case resultInfo, ok := <-callback:
 		if !ok {
-			return nil, "client closed"
+			return nil, fmt.Errorf("client closed")
 		}
-		result, err := argsutil.Bytes2Args(c.app, resultInfo.ResultType, resultInfo.Result)
+		result, err = argsutil.Bytes2Args(c.app, resultInfo.ResultType, resultInfo.Result)
 		if err != nil {
-			return nil, err.Error()
+			return nil, err
 		}
-		return result, resultInfo.Error
+
+		return result, fmt.Errorf(resultInfo.Error)
 	case <-ctx.Done():
 		_ = c.nats_client.Delete(rpcInfo.Cid)
 		c.close_callback_chan(callback)
-		return nil, "deadline exceeded"
+		return nil, fmt.Errorf("deadline exceeded")
 		//case <-time.After(time.Second * time.Duration(c.app.GetSettings().rpc.RPCExpired)):
 		//	close(callback)
 		//	c.nats_client.Delete(rpcInfo.Cid)
@@ -151,7 +156,7 @@ func (c *RPCClient) CallNRArgs(_func string, ArgsType []string, args [][]byte) (
 *
 消息请求 需要回复
 */
-func (c *RPCClient) Call(ctx context.Context, _func string, params ...interface{}) (interface{}, string) {
+func (c *RPCClient) Call(ctx context.Context, _func string, params ...interface{}) (interface{}, error) {
 	var ArgsType []string = make([]string, len(params))
 	var args [][]byte = make([][]byte, len(params))
 	var span log.TraceSpan = nil
@@ -159,7 +164,7 @@ func (c *RPCClient) Call(ctx context.Context, _func string, params ...interface{
 		var err error = nil
 		ArgsType[k], args[k], err = argsutil.ArgsTypeAnd2Bytes(c.app, param)
 		if err != nil {
-			return nil, fmt.Sprintf("args[%d] error %s", k, err.Error())
+			return nil, fmt.Errorf("args[%d] error %s", k, err.Error())
 		}
 		switch v2 := param.(type) { //多选语句switch
 		case log.TraceSpan:
@@ -168,11 +173,11 @@ func (c *RPCClient) Call(ctx context.Context, _func string, params ...interface{
 		}
 	}
 	start := time.Now()
-	r, errstr := c.CallArgs(ctx, _func, ArgsType, args)
+	r, err := c.CallArgs(ctx, _func, ArgsType, args)
 	if c.app.Configs().RpcLog {
-		log.TInfo(span, "rpc Call ServerId = %v Func = %v Elapsed = %v Result = %v ERROR = %v", c.nats_client.session.GetID(), _func, time.Since(start), r, errstr)
+		log.TInfo(span, "rpc Call ServerId = %v Func = %v Elapsed = %v Result = %v ERROR = %v", c.nats_client.session.GetID(), _func, time.Since(start), r, err)
 	}
-	return r, errstr
+	return r, err
 }
 
 /*

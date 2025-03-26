@@ -189,7 +189,7 @@ func (m *BaseModule) GetServerBySelector(serviceName string, opts ...selector.Se
 }
 
 // Call  Call
-func (m *BaseModule) Call(moduleType string, _func string, params mqrpc.ParamOption, opts ...selector.SelectOption) (interface{}, string) {
+func (m *BaseModule) Call(moduleType string, _func string, params mqrpc.ParamOption, opts ...selector.SelectOption) (interface{}, error) {
 	return m.App.Call(m.GetSubclass(), moduleType, _func, params, opts...)
 }
 

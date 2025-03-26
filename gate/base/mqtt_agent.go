@@ -335,7 +335,7 @@ func (age *agent) recoverworker(pack *mqtt.Pack) {
 				args[0] = b
 				ctx, _ := context.WithTimeout(context.TODO(), age.module.GetApp().Options().RPCExpired)
 				result, e := serverSession.CallArgs(ctx, topics[1], ArgsType, args)
-				toResult(age, *pub.GetTopic(), result, e)
+				toResult(age, *pub.GetTopic(), result, e.Error())
 			} else {
 				ArgsType[0] = RPCParamSessionType
 				b, err := session.Serializable()

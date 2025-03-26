@@ -89,9 +89,9 @@ type RPCServer interface {
 // RPCClient 客户端定义
 type RPCClient interface {
 	Done() (err error)
-	CallArgs(ctx context.Context, _func string, ArgsType []string, args [][]byte) (interface{}, string)
+	CallArgs(ctx context.Context, _func string, ArgsType []string, args [][]byte) (interface{}, error)
 	CallNRArgs(_func string, ArgsType []string, args [][]byte) (err error)
-	Call(ctx context.Context, _func string, params ...interface{}) (interface{}, string)
+	Call(ctx context.Context, _func string, params ...interface{}) (interface{}, error)
 	CallNR(_func string, params ...interface{}) (err error)
 }
 
