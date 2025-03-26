@@ -41,7 +41,7 @@ var (
 	GOB     = "gob"     //go gob
 )
 
-func ArgsTypeAnd2Bytes(serializes map[string]RPCSerialize, arg interface{}) (string, []byte, error) {
+func Args2Bytes(serializes map[string]RPCSerialize, arg interface{}) (string, []byte, error) {
 	if arg == nil {
 		return NULL, nil, nil
 	}
