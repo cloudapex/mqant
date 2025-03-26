@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package argsutil
+package mqrpc
 
 import (
 	"encoding/json"
@@ -20,8 +20,6 @@ import (
 	"strings"
 
 	"github.com/liangdas/mqant/log"
-	"github.com/liangdas/mqant/module"
-	mqrpc "github.com/liangdas/mqant/rpc"
 	mqanttools "github.com/liangdas/mqant/utils"
 	"google.golang.org/protobuf/proto"
 )
@@ -38,12 +36,12 @@ var (
 	MAP     = "map"     //map[string]interface{}
 	MAPSTR  = "mapstr"  //map[string]string{}
 	TRACE   = "trace"   //log.TraceSpanImp
-	Marshal = "marshal" //mqrpc.Marshaler
-	Proto   = "proto"   //proto.Message
-	Gob     = "gob"     //go gob
+	MARSHAL = "marshal" //mqrpc.Marshaler
+	PBPROTO = "pbproto" //proto.Message
+	GOB     = "gob"     //go gob
 )
 
-func ArgsTypeAnd2Bytes(app module.App, arg interface{}) (string, []byte, error) {
+func ArgsTypeAnd2Bytes(serializes map[string]RPCSerialize, arg interface{}) (string, []byte, error) {
 	if arg == nil {
 		return NULL, nil, nil
 	}
@@ -93,7 +91,7 @@ func ArgsTypeAnd2Bytes(app module.App, arg interface{}) (string, []byte, error) 
 		}
 		return TRACE, bytes, nil
 	default:
-		for _, v := range app.GetRPCSerialize() {
+		for _, v := range serializes {
 			ptype, vk, err := v.Serialize(arg)
 			if err == nil {
 				//解析成功了
@@ -104,21 +102,21 @@ func ArgsTypeAnd2Bytes(app module.App, arg interface{}) (string, []byte, error) 
 		rv := reflect.ValueOf(arg)
 		if rv.Kind() != reflect.Ptr {
 			//不是指针
-			return "", nil, fmt.Errorf("Args2Bytes [%v] not registered to app.addrpcserialize(...) structure type or not *mqrpc.marshaler pointer type", reflect.TypeOf(arg))
+			return "", nil, fmt.Errorf("Args2Bytes [%v] not registered to app.addrpcserialize(...) structure type or not *marshaler pointer type", reflect.TypeOf(arg))
 		} else {
 			if rv.IsNil() {
 				//如果是nil则直接返回
 				return NULL, nil, nil
 			}
-			if v2, ok := arg.(mqrpc.Marshaler); ok {
+			if v2, ok := arg.(Marshaler); ok {
 				b, err := v2.Marshal()
 				if err != nil {
 					return "", nil, fmt.Errorf("args [%s] marshal error %v", reflect.TypeOf(arg), err)
 				}
 				if v2.String() != "" {
-					return fmt.Sprintf("%v@%v", Marshal, v2.String()), b, nil
+					return fmt.Sprintf("%v@%v", MARSHAL, v2.String()), b, nil
 				} else {
-					return fmt.Sprintf("%v@%v", Marshal, reflect.TypeOf(arg)), b, nil
+					return fmt.Sprintf("%v@%v", MARSHAL, reflect.TypeOf(arg)), b, nil
 				}
 			}
 			if v2, ok := arg.(proto.Message); ok {
@@ -127,7 +125,7 @@ func ArgsTypeAnd2Bytes(app module.App, arg interface{}) (string, []byte, error) 
 					log.Error("proto.Marshal error")
 					return "", nil, fmt.Errorf("args [%s] proto.Marshal error %v", reflect.TypeOf(arg), err)
 				}
-				return fmt.Sprintf("%v@%v", Proto, reflect.TypeOf(arg)), b, nil
+				return fmt.Sprintf("%v@%v", PBPROTO, reflect.TypeOf(arg)), b, nil
 			}
 			// 默认使用gob编码
 			// var buf bytes.Buffer
@@ -142,11 +140,11 @@ func ArgsTypeAnd2Bytes(app module.App, arg interface{}) (string, []byte, error) 
 	}
 }
 
-func Bytes2Args(app module.App, argsType string, args []byte) (interface{}, error) {
-	if strings.HasPrefix(argsType, Marshal) {
+func Bytes2Args(serializes map[string]RPCSerialize, argsType string, args []byte) (interface{}, error) {
+	if strings.HasPrefix(argsType, MARSHAL) {
 		return args, nil
 	}
-	if strings.HasPrefix(argsType, Proto) {
+	if strings.HasPrefix(argsType, PBPROTO) {
 		return args, nil
 	}
 	switch argsType {
@@ -186,7 +184,7 @@ func Bytes2Args(app module.App, argsType string, args []byte) (interface{}, erro
 		}
 		return trace.ExtractSpan(), nil
 	default:
-		for _, v := range app.GetRPCSerialize() {
+		for _, v := range serializes {
 			vk, err := v.Deserialize(argsType, args)
 			if err == nil {
 				//解析成功了

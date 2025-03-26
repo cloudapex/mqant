@@ -10,7 +10,7 @@ import (
 	"github.com/liangdas/mqant/gate"
 	"github.com/liangdas/mqant/log"
 	"github.com/liangdas/mqant/module"
-	argsutil "github.com/liangdas/mqant/rpc/util"
+	mqrpc "github.com/liangdas/mqant/rpc"
 	"github.com/pkg/errors"
 )
 
@@ -147,10 +147,10 @@ func (u *URIRoute) OnRoute(session gate.Session, topic string, msg []byte) (bool
 		if err != nil {
 			return needreturn, nil, errors.Errorf("The JSON format is incorrect %v", err)
 		}
-		ArgsType[1] = argsutil.MAP
+		ArgsType[1] = mqrpc.MAP
 		args[1] = msg
 	} else {
-		ArgsType[1] = argsutil.BYTES
+		ArgsType[1] = mqrpc.BYTES
 		args[1] = msg
 	}
 	s := session.Clone()

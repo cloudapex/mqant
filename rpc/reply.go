@@ -18,25 +18,19 @@ type callResult struct {
 }
 
 // 拼装CallResult
-func RpcResult(reply interface{}, error error) callResult {
+func RpcResult(reply interface{}, err error) callResult {
 	return callResult{
 		Reply: reply,
-		Error: error,
+		Error: err,
 	}
 }
 
 // Int Int
-func Int(reply interface{}, err interface{}) (int, error) {
-	switch e := err.(type) {
-	case string:
-		if err != "" {
-			return 0, fmt.Errorf(e)
-		}
-	case error:
-		if err != nil {
-			return 0, e
-		}
+func Int(reply interface{}, err error) (int, error) {
+	if err != nil {
+		return 0, err
 	}
+
 	switch reply := reply.(type) {
 	case int64:
 		x := int(reply)
@@ -59,17 +53,11 @@ func Int(reply interface{}, err interface{}) (int, error) {
 //	bulk string   parsed reply, nil
 //	nil           0, ErrNil
 //	other         0, error
-func Int64(reply interface{}, err interface{}) (int64, error) {
-	switch e := err.(type) {
-	case string:
-		if err != "" {
-			return 0, fmt.Errorf(e)
-		}
-	case error:
-		if err != nil {
-			return 0, e
-		}
+func Int64(reply interface{}, err error) (int64, error) {
+	if err != nil {
+		return 0, err
 	}
+
 	switch reply := reply.(type) {
 	case int64:
 		return reply, nil
@@ -87,17 +75,11 @@ func Int64(reply interface{}, err interface{}) (int64, error) {
 //	bulk string   parsed reply, nil
 //	nil           0, ErrNil
 //	other         0, error
-func Float64(reply interface{}, err interface{}) (float64, error) {
-	switch e := err.(type) {
-	case string:
-		if err != "" {
-			return 0, fmt.Errorf(e)
-		}
-	case error:
-		if err != nil {
-			return 0, e
-		}
+func Float64(reply interface{}, err error) (float64, error) {
+	if err != nil {
+		return 0, err
 	}
+
 	switch reply := reply.(type) {
 	case float64:
 		return reply, nil
@@ -116,17 +98,11 @@ func Float64(reply interface{}, err interface{}) (float64, error) {
 //	simple string   reply, nil
 //	nil             "",  ErrNil
 //	other           "",  error
-func String(reply interface{}, err interface{}) (string, error) {
-	switch e := err.(type) {
-	case string:
-		if err != "" {
-			return "", fmt.Errorf(e)
-		}
-	case error:
-		if err != nil {
-			return "", e
-		}
+func String(reply interface{}, err error) (string, error) {
+	if err != nil {
+		return "", err
 	}
+
 	switch reply := reply.(type) {
 	case string:
 		return reply, nil
@@ -145,16 +121,9 @@ func String(reply interface{}, err interface{}) (string, error) {
 //	simple string   []byte(reply), nil
 //	nil             nil, ErrNil
 //	other           nil, error
-func Bytes(reply interface{}, err interface{}) ([]byte, error) {
-	switch e := err.(type) {
-	case string:
-		if err != "" {
-			return nil, fmt.Errorf(e)
-		}
-	case error:
-		if err != nil {
-			return nil, e
-		}
+func Bytes(reply interface{}, err error) ([]byte, error) {
+	if err != nil {
+		return nil, err
 	}
 	switch reply := reply.(type) {
 	case []byte:
@@ -165,17 +134,11 @@ func Bytes(reply interface{}, err interface{}) ([]byte, error) {
 	return nil, fmt.Errorf("mqrpc: unexpected type for Bytes, got type %T", reply)
 }
 
-func Bool(reply interface{}, err interface{}) (bool, error) {
-	switch e := err.(type) {
-	case string:
-		if err != "" {
-			return false, fmt.Errorf(e)
-		}
-	case error:
-		if err != nil {
-			return false, e
-		}
+func Bool(reply interface{}, err error) (bool, error) {
+	if err != nil {
+		return false, err
 	}
+
 	switch reply := reply.(type) {
 	case bool:
 		return reply, nil
@@ -188,17 +151,11 @@ func Bool(reply interface{}, err interface{}) (bool, error) {
 // StringMap is a helper that converts an array of strings (alternating key, value)
 // into a map[string]string. The HGETALL and CONFIG GET commands return replies in this format.
 // Requires an even number of values in result.
-func StringMap(reply interface{}, err interface{}) (map[string]string, error) {
-	switch e := err.(type) {
-	case string:
-		if err != "" {
-			return nil, fmt.Errorf(e)
-		}
-	case error:
-		if err != nil {
-			return nil, e
-		}
+func StringMap(reply interface{}, err error) (map[string]string, error) {
+	if err != nil {
+		return nil, err
 	}
+
 	switch reply := reply.(type) {
 	case map[string]string:
 		return reply, nil
@@ -209,17 +166,11 @@ func StringMap(reply interface{}, err interface{}) (map[string]string, error) {
 }
 
 // InterfaceMap InterfaceMap
-func InterfaceMap(reply interface{}, err interface{}) (map[string]interface{}, error) {
-	switch e := err.(type) {
-	case string:
-		if err != "" {
-			return nil, fmt.Errorf(e)
-		}
-	case error:
-		if err != nil {
-			return nil, e
-		}
+func InterfaceMap(reply interface{}, err error) (map[string]interface{}, error) {
+	if err != nil {
+		return nil, err
 	}
+
 	switch reply := reply.(type) {
 	case map[string]interface{}:
 		return reply, nil

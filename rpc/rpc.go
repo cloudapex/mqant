@@ -103,6 +103,30 @@ type Marshaler interface {
 	String() string
 }
 
+// RPCSerialize 自定义参数序列化接口
+type RPCSerialize interface {
+	/**
+	序列化 结构体-->[]byte
+	param 需要序列化的参数值
+	@return ptype 当能够序列化这个值,并且正确解析为[]byte时 返回改值正确的类型,否则返回 ""即可
+	@return p 解析成功得到的数据, 如果无法解析该类型,或者解析失败 返回nil即可
+	@return err 无法解析该类型,或者解析失败 返回错误信息
+	*/
+	Serialize(param interface{}) (ptype string, p []byte, err error)
+	/**
+	反序列化 []byte-->结构体
+	ptype 参数类型 与Serialize函数中ptype 对应
+	b   参数的字节流
+	@return param 解析成功得到的数据结构
+	@return err 无法解析该类型,或者解析失败 返回错误信息
+	*/
+	Deserialize(ptype string, b []byte) (param interface{}, err error)
+	/**
+	返回这个接口能够处理的所有类型
+	*/
+	GetTypes() []string
+}
+
 // ParamOption ParamOption
 type ParamOption func() []interface{}
 

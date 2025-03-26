@@ -25,7 +25,6 @@ import (
 	"github.com/liangdas/mqant/module"
 	mqrpc "github.com/liangdas/mqant/rpc"
 	rpcpb "github.com/liangdas/mqant/rpc/pb"
-	argsutil "github.com/liangdas/mqant/rpc/util"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -150,7 +149,7 @@ func (s *RPCServer) Call(callInfo *mqrpc.CallInfo) error {
 	//} else {
 	//	s.runFunc(callInfo)
 	//	//go func() {
-	//	//	resultInfo := rpcpb.NewResultInfo(callInfo.RPCInfo.Cid, "", argsutil.STRING, []byte("success"))
+	//	//	resultInfo := rpcpb.NewResultInfo(callInfo.RPCInfo.Cid, "", mqrpc.STRING, []byte("success"))
 	//	//	callInfo.Result = *resultInfo
 	//	//	s.doCallback(callInfo)
 	//	//}()
@@ -190,7 +189,7 @@ func (s *RPCServer) doCallback(callInfo *mqrpc.CallInfo) {
 func (s *RPCServer) _errorCallback(start time.Time, callInfo *mqrpc.CallInfo, Cid string, Error string) {
 	//异常日志都应该打印
 	//log.TError(span, "rpc Exec ModuleType = %v Func = %v Elapsed = %v ERROR:\n%v", s.module.GetType(), callInfo.RPCInfo.Fn, time.Since(start), Error)
-	resultInfo := rpcpb.NewResultInfo(Cid, Error, argsutil.NULL, nil)
+	resultInfo := rpcpb.NewResultInfo(Cid, Error, mqrpc.NULL, nil)
 	callInfo.Result = resultInfo
 	callInfo.ExecTime = time.Since(start).Nanoseconds()
 	s.doCallback(callInfo)
@@ -291,7 +290,7 @@ func (s *RPCServer) _runFunc(start time.Time, functionInfo *mqrpc.FunctionInfo, 
 				input[k] = pb
 			} else {
 				//不是Marshaler 才尝试用 argsutil 解析
-				ty, err := argsutil.Bytes2Args(s.app, v, params[k])
+				ty, err := mqrpc.Bytes2Args(s.app.GetRPCSerialize(), v, params[k])
 				if err != nil {
 					s._errorCallback(start, callInfo, callInfo.RPCInfo.Cid, err.Error())
 					return
@@ -357,7 +356,7 @@ func (s *RPCServer) _runFunc(start time.Time, functionInfo *mqrpc.FunctionInfo, 
 		s._errorCallback(start, callInfo, callInfo.RPCInfo.Cid, fmt.Sprintf("%s rpc func(%s) return error %s\n", s.module.GetType(), callInfo.RPCInfo.Fn, "func(....)(result interface{}, err error)"))
 		return
 	}
-	argsType, args, err := argsutil.ArgsTypeAnd2Bytes(s.app, rs[0])
+	argsType, args, err := mqrpc.ArgsTypeAnd2Bytes(s.app.GetRPCSerialize(), rs[0])
 	if err != nil {
 		s._errorCallback(start, callInfo, callInfo.RPCInfo.Cid, err.Error())
 		return

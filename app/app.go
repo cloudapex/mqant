@@ -46,7 +46,7 @@ func NewApp(opts ...module.Option) module.App {
 	app := new(DefaultApp)
 	app.opts = options
 	options.Selector.Init(selector.SetWatcher(app.Watcher))
-	app.rpcserializes = map[string]module.RPCSerialize{}
+	app.rpcserializes = map[string]mqrpc.RPCSerialize{}
 	return app
 }
 
@@ -58,7 +58,7 @@ type DefaultApp struct {
 	defaultRoutes func(app module.App, Type string, hash string) module.ServerSession
 	//将一个RPC调用路由到新的路由上
 	mapRoute            func(app module.App, route string) string
-	rpcserializes       map[string]module.RPCSerialize
+	rpcserializes       map[string]mqrpc.RPCSerialize
 	configurationLoaded func(app module.App)
 	startup             func(app module.App)
 	moduleInited        func(app module.App, module module.Module)
@@ -167,12 +167,12 @@ func (app *DefaultApp) WorkDir() string {
 }
 
 // GetRPCSerialize 获取自定义参数序列化接口
-func (app *DefaultApp) GetRPCSerialize() map[string]module.RPCSerialize {
+func (app *DefaultApp) GetRPCSerialize() map[string]mqrpc.RPCSerialize {
 	return app.rpcserializes
 }
 
 // AddRPCSerialize 添加自定义参数序列化接口
-func (app *DefaultApp) AddRPCSerialize(name string, Interface module.RPCSerialize) error {
+func (app *DefaultApp) AddRPCSerialize(name string, Interface mqrpc.RPCSerialize) error {
 	if _, ok := app.rpcserializes[name]; ok {
 		return fmt.Errorf("The name(%s) has been occupied", name)
 	}

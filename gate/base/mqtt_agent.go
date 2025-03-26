@@ -29,7 +29,7 @@ import (
 	"github.com/liangdas/mqant/log"
 	"github.com/liangdas/mqant/module"
 	"github.com/liangdas/mqant/network"
-	argsutil "github.com/liangdas/mqant/rpc/util"
+	mqrpc "github.com/liangdas/mqant/rpc"
 	mqanttools "github.com/liangdas/mqant/utils"
 )
 
@@ -318,10 +318,10 @@ func (age *agent) recoverworker(pack *mqtt.Pack) {
 					}
 					return
 				}
-				ArgsType[1] = argsutil.MAP
+				ArgsType[1] = mqrpc.MAP
 				args[1] = pub.GetMsg()
 			} else {
-				ArgsType[1] = argsutil.BYTES
+				ArgsType[1] = mqrpc.BYTES
 				args[1] = pub.GetMsg()
 			}
 			session := age.GetSession().Clone()
