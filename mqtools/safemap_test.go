@@ -1,4 +1,4 @@
-// Copyright 2014 mqant Author. All Rights Reserved.
+// Copyright 2014 beego Author. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,15 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package mqanttools 随机数生成
-package mqanttools
+package mqtools
 
-import "math/rand"
+import (
+	"testing"
+)
 
-// RandInt64 生成一个min->max的随机数
-func RandInt64(min, max int64) int64 {
-	if min >= max {
-		return max
+func Test_beemap(t *testing.T) {
+	bm := NewBeeMap()
+	if !bm.Set("astaxie", 1) {
+		t.Error("set Error")
 	}
-	return rand.Int63n(max-min) + min
+	if !bm.Check("astaxie") {
+		t.Error("check err")
+	}
+
+	if v := bm.Get("astaxie"); v.(int) != 1 {
+		t.Error("get err")
+	}
+
+	bm.Delete("astaxie")
+	if bm.Check("astaxie") {
+		t.Error("delete err")
+	}
 }

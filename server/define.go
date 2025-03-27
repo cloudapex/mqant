@@ -6,7 +6,7 @@ import (
 
 	"github.com/liangdas/mqant/conf"
 	"github.com/liangdas/mqant/module"
-	mqrpc "github.com/liangdas/mqant/rpc"
+	"github.com/liangdas/mqant/mqrpc"
 	"github.com/pborman/uuid"
 )
 

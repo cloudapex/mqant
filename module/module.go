@@ -19,8 +19,8 @@ import (
 	"context"
 
 	"github.com/liangdas/mqant/conf"
+	"github.com/liangdas/mqant/mqrpc"
 	"github.com/liangdas/mqant/registry"
-	mqrpc "github.com/liangdas/mqant/rpc"
 	"github.com/liangdas/mqant/selector"
 	"github.com/nats-io/nats.go"
 )

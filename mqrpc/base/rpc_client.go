@@ -21,9 +21,9 @@ import (
 
 	"github.com/liangdas/mqant/log"
 	"github.com/liangdas/mqant/module"
-	mqrpc "github.com/liangdas/mqant/rpc"
-	rpcpb "github.com/liangdas/mqant/rpc/pb"
-	"github.com/liangdas/mqant/utils/uuid"
+	"github.com/liangdas/mqant/mqrpc"
+	rpcpb "github.com/liangdas/mqant/mqrpc/pb"
+	"github.com/liangdas/mqant/mqtools/uuid"
 	"google.golang.org/protobuf/proto"
 )
 

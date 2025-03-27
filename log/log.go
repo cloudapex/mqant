@@ -17,7 +17,7 @@ package log
 
 import (
 	beegolog "github.com/liangdas/mqant/log/beego"
-	mqanttools "github.com/liangdas/mqant/utils"
+	"github.com/liangdas/mqant/mqtools"
 )
 
 var beego *beegolog.BeeLogger
@@ -59,8 +59,8 @@ func BiBeego() *beegolog.BeeLogger {
 // CreateRootTrace CreateRootTrace
 func CreateRootTrace() TraceSpan {
 	return &TraceSpanImp{
-		Trace: mqanttools.GenerateID().String(),
-		Span:  mqanttools.GenerateID().String(),
+		Trace: mqtools.GenerateID().String(),
+		Span:  mqtools.GenerateID().String(),
 	}
 }
 

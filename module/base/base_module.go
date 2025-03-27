@@ -23,12 +23,12 @@ import (
 	"github.com/liangdas/mqant/conf"
 	"github.com/liangdas/mqant/log"
 	"github.com/liangdas/mqant/module"
-	mqrpc "github.com/liangdas/mqant/rpc"
-	rpcpb "github.com/liangdas/mqant/rpc/pb"
+	"github.com/liangdas/mqant/mqrpc"
+	rpcpb "github.com/liangdas/mqant/mqrpc/pb"
+	"github.com/liangdas/mqant/mqtools"
 	"github.com/liangdas/mqant/selector"
 	"github.com/liangdas/mqant/server"
 	"github.com/liangdas/mqant/service"
-	mqanttools "github.com/liangdas/mqant/utils"
 	"github.com/pkg/errors"
 )
 
@@ -78,7 +78,7 @@ func (m *BaseModule) Init(subclass module.RPCModule, app module.App, settings *c
 		if settings.ID != "" {
 			opt = append(opt, server.ID(settings.ID))
 		} else {
-			opt = append(opt, server.ID(mqanttools.GenerateID().String()))
+			opt = append(opt, server.ID(mqtools.GenerateID().String()))
 		}
 	}
 

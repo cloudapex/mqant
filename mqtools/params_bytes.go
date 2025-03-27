@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package mqanttools 字节转化
-package mqanttools
+// Package mqtools 字节转化
+package mqtools
 
 import (
 	"encoding/binary"

@@ -28,9 +28,9 @@ import (
 	"github.com/liangdas/mqant/gate/base/mqtt"
 	"github.com/liangdas/mqant/log"
 	"github.com/liangdas/mqant/module"
+	"github.com/liangdas/mqant/mqrpc"
+	"github.com/liangdas/mqant/mqtools"
 	"github.com/liangdas/mqant/network"
-	mqrpc "github.com/liangdas/mqant/rpc"
-	mqanttools "github.com/liangdas/mqant/utils"
 )
 
 //type resultInfo struct {
@@ -158,7 +158,7 @@ func (age *agent) Run() (err error) {
 	age.client = c
 	addr := age.conn.RemoteAddr()
 	age.session, err = NewSessionByMap(age.module.GetApp(), map[string]interface{}{
-		"Sessionid": mqanttools.GenerateID().String(),
+		"Sessionid": mqtools.GenerateID().String(),
 		"Network":   addr.Network(),
 		"IP":        addr.String(),
 		"Serverid":  age.module.GetServerID(),

@@ -15,7 +15,7 @@
 // Package log 日志结构定义
 package log
 
-import "github.com/liangdas/mqant/utils"
+import "github.com/liangdas/mqant/mqtools"
 
 // TraceSpan A SpanID refers to a single span.
 type TraceSpan interface {
@@ -63,6 +63,6 @@ func (t *TraceSpanImp) SpanID() string {
 func (t *TraceSpanImp) ExtractSpan() TraceSpan {
 	return &TraceSpanImp{
 		Trace: t.Trace,
-		Span:  mqanttools.GenerateID().String(),
+		Span:  mqtools.GenerateID().String(),
 	}
 }

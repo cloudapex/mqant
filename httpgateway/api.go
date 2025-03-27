@@ -9,7 +9,7 @@ import (
 	"github.com/liangdas/mqant/httpgateway/errors"
 	go_api "github.com/liangdas/mqant/httpgateway/proto"
 	"github.com/liangdas/mqant/module"
-	mqrpc "github.com/liangdas/mqant/rpc"
+	"github.com/liangdas/mqant/mqrpc"
 )
 
 // APIHandler 网关handler

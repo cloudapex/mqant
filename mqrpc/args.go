@@ -20,7 +20,7 @@ import (
 	"strings"
 
 	"github.com/liangdas/mqant/log"
-	mqanttools "github.com/liangdas/mqant/utils"
+	"github.com/liangdas/mqant/mqtools"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -50,30 +50,28 @@ func Args2Bytes(serializes map[string]RPCSerialize, arg interface{}) (string, []
 		return BYTES, v2, nil
 	}
 	switch v2 := arg.(type) {
-	case nil:
-		return NULL, nil, nil
 	case string:
 		return STRING, []byte(v2), nil
 	case bool:
-		return BOOL, mqanttools.BoolToBytes(v2), nil
+		return BOOL, mqtools.BoolToBytes(v2), nil
 	case int32:
-		return INT, mqanttools.Int32ToBytes(v2), nil
+		return INT, mqtools.Int32ToBytes(v2), nil
 	case int64:
-		return LONG, mqanttools.Int64ToBytes(v2), nil
+		return LONG, mqtools.Int64ToBytes(v2), nil
 	case float32:
-		return FLOAT, mqanttools.Float32ToBytes(v2), nil
+		return FLOAT, mqtools.Float32ToBytes(v2), nil
 	case float64:
-		return DOUBLE, mqanttools.Float64ToBytes(v2), nil
+		return DOUBLE, mqtools.Float64ToBytes(v2), nil
 	case []byte:
 		return BYTES, v2, nil
 	case map[string]interface{}:
-		bytes, err := mqanttools.MapToBytes(v2)
+		bytes, err := mqtools.MapToBytes(v2)
 		if err != nil {
 			return MAP, nil, err
 		}
 		return MAP, bytes, nil
 	case map[string]string:
-		bytes, err := mqanttools.MapToBytesString(v2)
+		bytes, err := mqtools.MapToBytesString(v2)
 		if err != nil {
 			return MAPSTR, nil, err
 		}
@@ -153,25 +151,25 @@ func Bytes2Args(serializes map[string]RPCSerialize, argsType string, args []byte
 	case STRING:
 		return string(args), nil
 	case BOOL:
-		return mqanttools.BytesToBool(args), nil
+		return mqtools.BytesToBool(args), nil
 	case INT:
-		return mqanttools.BytesToInt32(args), nil
+		return mqtools.BytesToInt32(args), nil
 	case LONG:
-		return mqanttools.BytesToInt64(args), nil
+		return mqtools.BytesToInt64(args), nil
 	case FLOAT:
-		return mqanttools.BytesToFloat32(args), nil
+		return mqtools.BytesToFloat32(args), nil
 	case DOUBLE:
-		return mqanttools.BytesToFloat64(args), nil
+		return mqtools.BytesToFloat64(args), nil
 	case BYTES:
 		return args, nil
 	case MAP:
-		mps, errs := mqanttools.BytesToMap(args)
+		mps, errs := mqtools.BytesToMap(args)
 		if errs != nil {
 			return nil, errs
 		}
 		return mps, nil
 	case MAPSTR:
-		mps, errs := mqanttools.BytesToMapString(args)
+		mps, errs := mqtools.BytesToMapString(args)
 		if errs != nil {
 			return nil, errs
 		}

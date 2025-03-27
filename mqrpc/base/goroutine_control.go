@@ -1,6 +1,6 @@
 package defaultrpc
 
-import mqrpc "github.com/liangdas/mqant/rpc"
+import "github.com/liangdas/mqant/mqrpc"
 
 func NewGoroutineControl(size uint32) mqrpc.GoroutineControl {
 	control := GtControl{

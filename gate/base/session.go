@@ -23,8 +23,8 @@ import (
 	"github.com/liangdas/mqant/gate"
 	"github.com/liangdas/mqant/log"
 	"github.com/liangdas/mqant/module"
-	mqrpc "github.com/liangdas/mqant/rpc"
-	mqanttools "github.com/liangdas/mqant/utils"
+	"github.com/liangdas/mqant/mqrpc"
+	"github.com/liangdas/mqant/mqtools"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -609,7 +609,7 @@ func (sesid *sessionagent) Clone() gate.Session {
 		SessionId: sesid.session.SessionId,
 		ServerId:  sesid.session.ServerId,
 		TraceId:   sesid.session.TraceId,
-		SpanId:    mqanttools.GenerateID().String(),
+		SpanId:    mqtools.GenerateID().String(),
 		Settings:  tmp,
 	}
 	agent.session = se
@@ -618,8 +618,8 @@ func (sesid *sessionagent) Clone() gate.Session {
 }
 
 func (sesid *sessionagent) CreateTrace() {
-	sesid.session.TraceId = mqanttools.GenerateID().String()
-	sesid.session.SpanId = mqanttools.GenerateID().String()
+	sesid.session.TraceId = mqtools.GenerateID().String()
+	sesid.session.SpanId = mqtools.GenerateID().String()
 }
 
 func (sesid *sessionagent) TraceID() string {
@@ -651,7 +651,7 @@ func (sesid *sessionagent) ExtractSpan() log.TraceSpan {
 		SessionId: sesid.session.SessionId,
 		ServerId:  sesid.session.ServerId,
 		TraceId:   sesid.session.TraceId,
-		SpanId:    mqanttools.GenerateID().String(),
+		SpanId:    mqtools.GenerateID().String(),
 		Settings:  sesid.session.Settings,
 	}
 	agent.session = se

@@ -74,7 +74,7 @@ import (
 	"errors"
 	basemodule "github.com/liangdas/mqant/module/base"
 	client "github.com/liangdas/mqant/module"
-	mqrpc "github.com/liangdas/mqant/rpc"
+	"github.com/liangdas/mqant/mqrpc"
 	"golang.org/x/net/context"
 )
 

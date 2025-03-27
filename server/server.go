@@ -8,10 +8,10 @@ import (
 	"github.com/liangdas/mqant/conf"
 	"github.com/liangdas/mqant/log"
 	"github.com/liangdas/mqant/module"
+	"github.com/liangdas/mqant/mqrpc"
+	rpcbase "github.com/liangdas/mqant/mqrpc/base"
+	"github.com/liangdas/mqant/mqtools/lib/addr"
 	"github.com/liangdas/mqant/registry"
-	mqrpc "github.com/liangdas/mqant/rpc"
-	defaultrpc "github.com/liangdas/mqant/rpc/base"
-	"github.com/liangdas/mqant/utils/lib/addr"
 )
 
 func newServer(opts ...Option) Server {
@@ -50,7 +50,7 @@ func (s *server) UpdMetadata(key, val string) {
 	s.RUnlock()
 }
 func (s *server) OnInit(module module.Module, app module.App, settings *conf.ModuleSettings) error {
-	server, err := defaultrpc.NewRPCServer(app, module) //默认会创建一个本地的RPC
+	server, err := rpcbase.NewRPCServer(app, module) //默认会创建一个本地的RPC
 	if err != nil {
 		log.Warning("Dial: %s", err)
 	}

@@ -1,4 +1,4 @@
-package mqanttools
+package mqtools
 
 import (
 	"fmt"

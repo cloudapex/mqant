@@ -19,9 +19,9 @@ import (
 	"context"
 
 	"github.com/liangdas/mqant/module"
+	"github.com/liangdas/mqant/mqrpc"
+	rpcbase "github.com/liangdas/mqant/mqrpc/base"
 	"github.com/liangdas/mqant/registry"
-	mqrpc "github.com/liangdas/mqant/rpc"
-	defaultrpc "github.com/liangdas/mqant/rpc/base"
 )
 
 // NewServerSession 创建一个节点实例
@@ -31,7 +31,7 @@ func NewServerSession(app module.App, name string, node *registry.Node) (module.
 		node: node,
 		app:  app,
 	}
-	rpc, err := defaultrpc.NewRPCClient(app, session)
+	rpc, err := rpcbase.NewRPCClient(app, session)
 	if err != nil {
 		return nil, err
 	}

@@ -10,7 +10,7 @@ import (
 	"github.com/liangdas/mqant/gate"
 	"github.com/liangdas/mqant/log"
 	"github.com/liangdas/mqant/module"
-	mqrpc "github.com/liangdas/mqant/rpc"
+	"github.com/liangdas/mqant/mqrpc"
 	"github.com/pkg/errors"
 )
 

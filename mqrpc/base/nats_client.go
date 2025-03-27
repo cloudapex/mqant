@@ -21,16 +21,16 @@ import (
 
 	"github.com/liangdas/mqant/log"
 	"github.com/liangdas/mqant/module"
-	mqrpc "github.com/liangdas/mqant/rpc"
-	rpcpb "github.com/liangdas/mqant/rpc/pb"
-	mqanttools "github.com/liangdas/mqant/utils"
+	"github.com/liangdas/mqant/mqrpc"
+	rpcpb "github.com/liangdas/mqant/mqrpc/pb"
+	"github.com/liangdas/mqant/mqtools"
 	"github.com/nats-io/nats.go"
 	"google.golang.org/protobuf/proto"
 )
 
 type NatsClient struct {
 	//callinfos map[string]*ClinetCallInfo
-	callinfos         *mqanttools.BeeMap
+	callinfos         *mqtools.BeeMap
 	cmutex            sync.Mutex //操作callinfos的锁
 	callbackqueueName string
 	app               module.App
@@ -44,7 +44,7 @@ func NewNatsClient(app module.App, session module.ServerSession) (client *NatsCl
 	client = new(NatsClient)
 	client.session = session
 	client.app = app
-	client.callinfos = mqanttools.NewBeeMap()
+	client.callinfos = mqtools.NewBeeMap()
 	client.callbackqueueName = nats.NewInbox()
 	client.done = make(chan error)
 	client.isClose = false

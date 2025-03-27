@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package mqanttools 工具箱
-package mqanttools
+// Package mqtools 工具箱
+package mqtools
 
 import (
 	"math"
