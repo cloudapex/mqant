@@ -14,10 +14,10 @@
 package defaultrpc
 
 import (
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -25,7 +25,6 @@ import (
 	"github.com/liangdas/mqant/module"
 	"github.com/liangdas/mqant/mqrpc"
 	rpcpb "github.com/liangdas/mqant/mqrpc/pb"
-	"google.golang.org/protobuf/proto"
 )
 
 type RPCServer struct {
@@ -189,7 +188,12 @@ func (s *RPCServer) doCallback(callInfo *mqrpc.CallInfo) {
 func (s *RPCServer) _errorCallback(start time.Time, callInfo *mqrpc.CallInfo, Cid string, Error string) {
 	//异常日志都应该打印
 	//log.TError(span, "rpc Exec ModuleType = %v Func = %v Elapsed = %v ERROR:\n%v", s.module.GetType(), callInfo.RPCInfo.Fn, time.Since(start), Error)
-	resultInfo := rpcpb.NewResultInfo(Cid, Error, mqrpc.NULL, nil)
+	resultInfo := &rpcpb.ResultInfo{
+		Cid:        Cid,
+		Error:      Error,
+		ResultType: mqrpc.NULL,
+		Result:     nil,
+	}
 	callInfo.Result = resultInfo
 	callInfo.ExecTime = time.Since(start).Nanoseconds()
 	s.doCallback(callInfo)
@@ -246,77 +250,62 @@ func (s *RPCServer) _runFunc(start time.Time, functionInfo *mqrpc.FunctionInfo, 
 		input = make([]interface{}, len(params))
 		for k, v := range ArgsType {
 			rv := fInType[k]
+
+			var isPtr = false
 			var elemp reflect.Value
-			if rv.Kind() == reflect.Ptr {
-				//如果是指针类型就得取到指针所代表的具体类型
+			if rv.Kind() == reflect.Ptr { // 如果是指针类型就得取到指针所代表的具体类型
+				isPtr = true
 				elemp = reflect.New(rv.Elem())
 			} else {
 				elemp = reflect.New(rv)
 			}
 
-			if pb, ok := elemp.Interface().(mqrpc.Marshaler); ok {
-				err := pb.Unmarshal(params[k])
-				if err != nil {
+			ret, err := mqrpc.Bytes2Args(s.app.GetRPCSerialize(), v, params[k])
+			if err != nil {
+				s._errorCallback(start, callInfo, callInfo.RPCInfo.Cid, err.Error())
+				return
+			}
+
+			switch {
+			case strings.HasPrefix(v, mqrpc.MARSHAL):
+				if err := mqrpc.Marshal(elemp.Interface(), mqrpc.RpcResult(ret, nil)); err != nil {
 					s._errorCallback(start, callInfo, callInfo.RPCInfo.Cid, err.Error())
 					return
 				}
-				if pb == nil { //多选语句switch
-					in[k] = reflect.Zero(rv)
-				}
-				if rv.Kind() == reflect.Ptr {
-					//接收指针变量的参数
-					in[k] = reflect.ValueOf(elemp.Interface())
+				if isPtr {
+					in[k] = reflect.ValueOf(elemp.Interface()) //接收 指针变量
 				} else {
-					//接收值变量
-					in[k] = elemp.Elem()
+					in[k] = elemp.Elem() // 接收 值变量
 				}
-				input[k] = pb
-			} else if pb, ok := elemp.Interface().(proto.Message); ok {
-				err := proto.Unmarshal(params[k], pb)
-				if err != nil {
+			case strings.HasPrefix(v, mqrpc.PBPROTO):
+				if err := mqrpc.Proto(elemp.Interface(), mqrpc.RpcResult(ret, nil)); err != nil {
 					s._errorCallback(start, callInfo, callInfo.RPCInfo.Cid, err.Error())
 					return
 				}
-				if pb == nil { //多选语句switch
-					in[k] = reflect.Zero(rv)
-				}
-				if rv.Kind() == reflect.Ptr {
-					//接收指针变量的参数
-					in[k] = reflect.ValueOf(elemp.Interface())
+				if isPtr {
+					in[k] = reflect.ValueOf(elemp.Interface()) //接收 指针变量
 				} else {
-					//接收值变量
-					in[k] = elemp.Elem()
+					in[k] = elemp.Elem() // 接收 值变量
 				}
-				input[k] = pb
-			} else {
-				//不是Marshaler 才尝试用 argsutil 解析
-				ty, err := mqrpc.Bytes2Args(s.app.GetRPCSerialize(), v, params[k])
-				if err != nil {
+			case strings.HasPrefix(v, mqrpc.GOB):
+				if err := mqrpc.Gob(elemp.Interface(), mqrpc.RpcResult(ret, nil)); err != nil {
 					s._errorCallback(start, callInfo, callInfo.RPCInfo.Cid, err.Error())
 					return
 				}
-				switch v2 := ty.(type) { //多选语句switch
+				if isPtr {
+					in[k] = reflect.ValueOf(elemp.Interface()) //接收 指针变量
+				} else {
+					in[k] = elemp.Elem() // 接收 值变量
+				}
+			default: // 其他的当做基本类型赋值
+				switch ret.(type) {
 				case nil:
 					in[k] = reflect.Zero(rv)
-				case []uint8:
-					if reflect.TypeOf(ty).AssignableTo(rv) {
-						//如果ty "继承" 于接受参数类型
-						in[k] = reflect.ValueOf(ty)
-					} else {
-						elemp := reflect.New(rv)
-						err := json.Unmarshal(v2, elemp.Interface())
-						if err != nil {
-							log.Error("%v []uint8--> %v error with='%v'", callInfo.RPCInfo.Fn, rv, err)
-							in[k] = reflect.ValueOf(ty)
-						} else {
-							in[k] = elemp.Elem()
-						}
-					}
 				default:
-					in[k] = reflect.ValueOf(ty)
+					in[k] = reflect.ValueOf(ret)
 				}
-				input[k] = in[k].Interface()
 			}
+			input[k] = in[k].Interface()
 		}
 	}
 
@@ -361,12 +350,13 @@ func (s *RPCServer) _runFunc(start time.Time, functionInfo *mqrpc.FunctionInfo, 
 		s._errorCallback(start, callInfo, callInfo.RPCInfo.Cid, err.Error())
 		return
 	}
-	resultInfo := rpcpb.NewResultInfo(
-		callInfo.RPCInfo.Cid,
-		rerr,
-		argsType,
-		args,
-	)
+
+	resultInfo := &rpcpb.ResultInfo{
+		Cid:        callInfo.RPCInfo.Cid,
+		Error:      rerr,
+		ResultType: argsType,
+		Result:     args,
+	}
 	callInfo.Result = resultInfo
 	callInfo.ExecTime = time.Since(start).Nanoseconds()
 	s.doCallback(callInfo)

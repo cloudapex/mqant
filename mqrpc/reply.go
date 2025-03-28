@@ -1,6 +1,8 @@
 package mqrpc
 
 import (
+	"bytes"
+	"encoding/gob"
 	"errors"
 	"fmt"
 	"reflect"
@@ -181,17 +183,17 @@ func InterfaceMap(reply interface{}, err error) (map[string]interface{}, error) 
 }
 
 // Marshal Marshal
-func Marshal(reply interface{}, ret callResult) error {
+func Marshal(pObj interface{}, ret callResult) error {
 	if ret.Error != nil {
 		return ret.Error
 	}
 
-	rv := reflect.ValueOf(reply)
+	rv := reflect.ValueOf(pObj)
 	if rv.Kind() != reflect.Ptr {
 		//不是指针
-		return fmt.Errorf("mrsp [%v] not *mqrpc.marshaler pointer type", rv.Type())
+		return fmt.Errorf("pObj [%v] not *mqrpc.marshaler pointer type", rv.Type())
 	}
-	if v2, ok := reply.(Marshaler); ok {
+	if v2, ok := pObj.(Marshaler); ok {
 		switch r := ret.Reply.(type) {
 		case []byte:
 			err := v2.Unmarshal(r)
@@ -203,22 +205,22 @@ func Marshal(reply interface{}, ret callResult) error {
 			return ErrNil
 		}
 	} else {
-		return fmt.Errorf("mrsp [%v] not *mqrpc.marshaler type", rv.Type())
+		return fmt.Errorf("pObj [%v] not *mqrpc.marshaler type", rv.Type())
 	}
 	return fmt.Errorf("mqrpc: unexpected type for %v, got type %T", reflect.ValueOf(ret.Reply), ret.Reply)
 }
 
 // Proto Proto
-func Proto(reply interface{}, ret callResult) error {
+func Proto(pObj interface{}, ret callResult) error {
 	if ret.Error != nil {
 		return ret.Error
 	}
 
-	rv := reflect.ValueOf(reply)
+	rv := reflect.ValueOf(pObj)
 	if rv.Kind() != reflect.Ptr { //不是指针
-		return fmt.Errorf("mrsp [%v] not *proto.Message pointer type", rv.Type())
+		return fmt.Errorf("pObj [%v] not *proto.Message pointer type", rv.Type())
 	}
-	if v2, ok := reply.(proto.Message); ok {
+	if v2, ok := pObj.(proto.Message); ok {
 		switch r := ret.Reply.(type) {
 		case []byte:
 			err := proto.Unmarshal(r, v2)
@@ -230,7 +232,31 @@ func Proto(reply interface{}, ret callResult) error {
 			return ErrNil
 		}
 	} else {
-		return fmt.Errorf("mrsp [%v] not *proto.Message type", rv.Type())
+		return fmt.Errorf("pObj [%v] not *proto.Message type", rv.Type())
+	}
+	return fmt.Errorf("mqrpc: unexpected type for %v, got type %T", reflect.ValueOf(ret.Reply), ret.Reply)
+}
+
+// Gob Gob
+func Gob(pObj interface{}, ret callResult) error {
+	if ret.Error != nil {
+		return ret.Error
+	}
+
+	rv := reflect.ValueOf(pObj)
+	if rv.Kind() != reflect.Ptr { //不是指针
+		return fmt.Errorf("pObj [%v] not *proto.Message pointer type", rv.Type())
+	}
+
+	switch r := ret.Reply.(type) {
+	case []byte:
+		decoder := gob.NewDecoder(bytes.NewBuffer(r))
+		if err := decoder.Decode(pObj); err != nil {
+			return fmt.Errorf("pObj [%s] gob decode error: %v", rv.Type(), err)
+		}
+		return nil
+	case nil:
+		return ErrNil
 	}
 	return fmt.Errorf("mqrpc: unexpected type for %v, got type %T", reflect.ValueOf(ret.Reply), ret.Reply)
 }
