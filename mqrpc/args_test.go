@@ -42,8 +42,8 @@ func onRPCFunc2(u *user) (string, error) {
 	fmt.Println("onRPCFunc2 成功调用,请检查参数:", u)
 	return "ok", nil
 }
-func onRPCFunc3(u *user) (*out, error) {
-	fmt.Println("onRPCFunc3 成功调用,请检查参数:", u)
+func onRPCFunc3(u *user, m map[string]string) (*out, error) {
+	fmt.Println("onRPCFunc3 成功调用,请检查参数:", u, m)
 	return nil, nil
 }
 func TestBytes(t *testing.T) {
@@ -53,7 +53,7 @@ func TestBytes(t *testing.T) {
 	str, err = String(call(context.TODO(), "rpc2", &user{X: 1, N: 2, S: "str"}))
 	t.Log("rpc2", str, err)
 	ret := &out{}
-	err = Gob(ret, RpcResult(call(context.TODO(), "rpc3", (*user)(nil) /*&user{X: 1, N: 2, S: "str"}*/)))
+	err = Gob(ret, RpcResult(call(context.TODO(), "rpc3", (*user)(nil) /*&user{X: 1, N: 2, S: "str"}*/, map[string]string{"a": "b"})))
 	t.Log("rpc3", ret, err)
 }
 
