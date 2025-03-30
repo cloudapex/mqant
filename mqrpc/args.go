@@ -43,7 +43,7 @@ var (
 	GOB     = "gob"     //go gob(default struct)
 )
 
-func Args2Bytes(serializes map[string]RPCSerialize, arg interface{}) (string, []byte, error) {
+func Args2Bytes(arg interface{}) (string, []byte, error) {
 	if arg == nil {
 		return NULL, nil, nil
 	}
@@ -100,19 +100,7 @@ func Args2Bytes(serializes map[string]RPCSerialize, arg interface{}) (string, []
 			return "", nil, fmt.Errorf("Args2Bytes [%v] not struct type", reflect.TypeOf(arg))
 		}
 
-		for _, v := range serializes {
-			ptype, vk, err := v.Serialize(arg)
-			if err == nil {
-				//解析成功了
-				return ptype, vk, err
-			}
-		}
-
-		if rv.IsNil() {
-			//如果是nil则直接返回
-			return NULL, nil, nil
-		}
-
+		// use mqrpc.Marshaler
 		if v2, ok := arg.(Marshaler); ok {
 			b, err := v2.Marshal()
 			if err != nil {
@@ -120,6 +108,7 @@ func Args2Bytes(serializes map[string]RPCSerialize, arg interface{}) (string, []
 			}
 			return fmt.Sprintf("%v@%v", MARSHAL, reflect.TypeOf(arg)), b, nil
 		}
+		// use proto.Message
 		if v2, ok := arg.(proto.Message); ok {
 			b, err := proto.Marshal(v2)
 			if err != nil {
@@ -128,7 +117,7 @@ func Args2Bytes(serializes map[string]RPCSerialize, arg interface{}) (string, []
 			}
 			return fmt.Sprintf("%v@%v", PBPROTO, reflect.TypeOf(arg)), b, nil
 		}
-		// 默认使用gob编码
+		// use gob coding (default)
 		var buf bytes.Buffer
 		encoder := gob.NewEncoder(&buf)
 		if err := encoder.Encode(arg); err != nil {
@@ -138,97 +127,7 @@ func Args2Bytes(serializes map[string]RPCSerialize, arg interface{}) (string, []
 	}
 }
 
-func BytesToArgs(serializes map[string]RPCSerialize, argsType string, args []byte, inType reflect.Type) (reflect.Value, error) {
-	var isPtr = false
-	var elemp reflect.Value
-	if inType.Kind() == reflect.Ptr { //如果是指针类型就得取到指针所代表的具体类型
-		isPtr = true
-		elemp = reflect.New(inType.Elem())
-	} else {
-		elemp = reflect.New(inType)
-	}
-
-	switch {
-	case argsType == NULL:
-		return elemp, nil
-	case argsType == STRING:
-		return reflect.ValueOf(string(args)), nil
-	case argsType == BOOL:
-		return reflect.ValueOf(mqtools.BytesToBool(args)), nil
-	case argsType == INT:
-		return reflect.ValueOf(mqtools.BytesToInt32(args)), nil
-	case argsType == LONG:
-		return reflect.ValueOf(mqtools.BytesToInt64(args)), nil
-	case argsType == FLOAT:
-		return reflect.ValueOf(mqtools.BytesToFloat32(args)), nil
-	case argsType == DOUBLE:
-		return reflect.ValueOf(mqtools.BytesToFloat64(args)), nil
-	case argsType == BYTES:
-		return reflect.ValueOf(args), nil
-	case argsType == MAP:
-		mps, err := mqtools.BytesToMap(args)
-		if err != nil {
-			return elemp, err
-		}
-		return reflect.ValueOf(mps), nil
-	case argsType == MAPSTR:
-		mps, err := mqtools.BytesToMapString(args)
-		if err != nil {
-			return elemp, err
-		}
-		return reflect.ValueOf(mps), nil
-	case argsType == TRACE:
-		trace := &log.TraceSpanImp{}
-		err := json.Unmarshal(args, trace)
-		if err != nil {
-			return elemp, err
-		}
-		return reflect.ValueOf(trace.ExtractSpan()), nil
-	case strings.HasPrefix(argsType, MARSHAL):
-		mr, ok := elemp.Interface().(Marshaler)
-		if !ok {
-			return elemp, fmt.Errorf("args [%s] no implemented interface(marshal)", argsType)
-		}
-		if err := mr.Unmarshal(args); err != nil {
-			return elemp, err
-		}
-		if isPtr {
-			return reflect.ValueOf(mr), nil
-		}
-		return elemp.Elem(), nil
-	case strings.HasPrefix(argsType, PBPROTO):
-		pb, ok := elemp.Interface().(proto.Message)
-		if !ok {
-			return elemp, fmt.Errorf("args [%s] no implemented interface(proto.Message)", argsType)
-		}
-		if err := proto.Unmarshal(args, pb); err != nil {
-			return elemp, err
-		}
-		if isPtr {
-			return reflect.ValueOf(pb), nil
-		}
-		return elemp.Elem(), nil
-	case strings.HasPrefix(argsType, GOB):
-		er := elemp.Interface()
-		decoder := gob.NewDecoder(bytes.NewBuffer(args))
-		if err := decoder.Decode(elemp.Interface()); err != nil {
-			return elemp, fmt.Errorf("args [%s] gob decode error: %v", argsType, err)
-		}
-		if isPtr {
-			return reflect.ValueOf(er), nil
-		}
-		return elemp.Elem(), nil
-	default:
-		for _, v := range serializes {
-			vk, err := v.Deserialize(argsType, args)
-			if err == nil {
-				return reflect.ValueOf(vk), nil
-			}
-		}
-		return elemp, fmt.Errorf("Bytes2Args [%s] not registered to app.addrpcserialize(...)", argsType)
-	}
-}
-func Bytes2Args(serializes map[string]RPCSerialize, argsType string, args []byte) (interface{}, error) {
+func Bytes2Args(argsType string, args []byte) (interface{}, error) {
 	switch {
 	case argsType == NULL:
 		return nil, nil
@@ -247,15 +146,15 @@ func Bytes2Args(serializes map[string]RPCSerialize, argsType string, args []byte
 	case argsType == BYTES:
 		return args, nil
 	case argsType == MAP:
-		mps, errs := mqtools.BytesToMap(args)
-		if errs != nil {
-			return nil, errs
+		mps, err := mqtools.BytesToMap(args)
+		if err != nil {
+			return nil, err
 		}
 		return mps, nil
 	case argsType == MAPSTR:
-		mps, errs := mqtools.BytesToMapString(args)
-		if errs != nil {
-			return nil, errs
+		mps, err := mqtools.BytesToMapString(args)
+		if err != nil {
+			return nil, err
 		}
 		return mps, nil
 	case argsType == TRACE:
@@ -271,14 +170,6 @@ func Bytes2Args(serializes map[string]RPCSerialize, argsType string, args []byte
 		return args, nil
 	case strings.HasPrefix(argsType, GOB): // 不能直接解出对象
 		return args, nil
-	default:
-		for _, v := range serializes {
-			vk, err := v.Deserialize(argsType, args)
-			if err == nil {
-				//解析成功了
-				return vk, err
-			}
-		}
-		return nil, fmt.Errorf("Bytes2Args [%s] not registered to app.addrpcserialize(...)", argsType)
 	}
+	return nil, fmt.Errorf("Bytes2Args [%s] unsupported argsType", argsType)
 }

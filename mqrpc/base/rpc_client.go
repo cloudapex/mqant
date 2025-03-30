@@ -103,7 +103,7 @@ func (c *RPCClient) CallArgs(ctx context.Context, _func string, ArgsType []strin
 		if !ok {
 			return nil, fmt.Errorf("client closed")
 		}
-		result, err = mqrpc.Bytes2Args(c.app.GetRPCSerialize(), resultInfo.ResultType, resultInfo.Result)
+		result, err = mqrpc.Bytes2Args(resultInfo.ResultType, resultInfo.Result)
 		if err != nil {
 			return nil, err
 		}
@@ -161,7 +161,7 @@ func (c *RPCClient) Call(ctx context.Context, _func string, params ...interface{
 	var span log.TraceSpan = nil
 	for k, param := range params {
 		var err error = nil
-		ArgsType[k], args[k], err = mqrpc.Args2Bytes(c.app.GetRPCSerialize(), param)
+		ArgsType[k], args[k], err = mqrpc.Args2Bytes(param)
 		if err != nil {
 			return nil, fmt.Errorf("args[%d] error %s", k, err.Error())
 		}
@@ -188,7 +188,7 @@ func (c *RPCClient) CallNR(_func string, params ...interface{}) (err error) {
 	var args [][]byte = make([][]byte, len(params))
 	var span log.TraceSpan = nil
 	for k, param := range params {
-		ArgsType[k], args[k], err = mqrpc.Args2Bytes(c.app.GetRPCSerialize(), param)
+		ArgsType[k], args[k], err = mqrpc.Args2Bytes(param)
 		if err != nil {
 			return fmt.Errorf("args[%d] error %s", k, err.Error())
 		}

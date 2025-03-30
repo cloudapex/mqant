@@ -260,7 +260,7 @@ func (s *RPCServer) _runFunc(start time.Time, functionInfo *mqrpc.FunctionInfo, 
 				elemp = reflect.New(rv)
 			}
 
-			ret, err := mqrpc.Bytes2Args(s.app.GetRPCSerialize(), v, params[k])
+			ret, err := mqrpc.Bytes2Args(v, params[k])
 			if err != nil {
 				s._errorCallback(start, callInfo, callInfo.RPCInfo.Cid, err.Error())
 				return
@@ -345,7 +345,7 @@ func (s *RPCServer) _runFunc(start time.Time, functionInfo *mqrpc.FunctionInfo, 
 		s._errorCallback(start, callInfo, callInfo.RPCInfo.Cid, fmt.Sprintf("%s rpc func(%s) return error %s\n", s.module.GetType(), callInfo.RPCInfo.Fn, "func(....)(result interface{}, err error)"))
 		return
 	}
-	argsType, args, err := mqrpc.Args2Bytes(s.app.GetRPCSerialize(), rs[0])
+	argsType, args, err := mqrpc.Args2Bytes(rs[0])
 	if err != nil {
 		s._errorCallback(start, callInfo, callInfo.RPCInfo.Cid, err.Error())
 		return

@@ -20,7 +20,6 @@ import (
 
 	"github.com/liangdas/mqant/conf"
 	"github.com/liangdas/mqant/gate"
-	"github.com/liangdas/mqant/log"
 	"github.com/liangdas/mqant/module"
 	basemodule "github.com/liangdas/mqant/module/base"
 	"github.com/liangdas/mqant/network"
@@ -163,61 +162,13 @@ func (gt *Gate) GetTypes() []string {
 	return []string{RPCParamSessionType}
 }
 
-type SessionSerialize struct {
-	App module.App
-}
-
-/*
-*
-自定义rpc参数序列化反序列化  Session
-*/
-func (gt *SessionSerialize) Serialize(param interface{}) (ptype string, p []byte, err error) {
-	rv := reflect.ValueOf(param)
-	if rv.Kind() != reflect.Ptr || rv.IsNil() {
-		//不是指针
-		return "", nil, fmt.Errorf("Serialize [%v ] or not pointer type", rv.Type())
-	}
-	switch v2 := param.(type) {
-	case gate.Session:
-		bytes, err := v2.Serializable()
-		if err != nil {
-			return RPCParamSessionType, nil, err
-		}
-		return RPCParamSessionType, bytes, nil
-	case module.ProtocolMarshal:
-		bytes := v2.GetData()
-		return RPCParamProtocolMarshalType, bytes, nil
-	default:
-		return "", nil, fmt.Errorf("args [%s] Types not allowed", reflect.TypeOf(param))
-	}
-}
-
-func (gt *SessionSerialize) Deserialize(ptype string, b []byte) (param interface{}, err error) {
-	switch ptype {
-	case RPCParamSessionType:
-		mps, errs := NewSession(gt.App, b)
-		if errs != nil {
-			return nil, errs
-		}
-		return mps.Clone(), nil
-	case RPCParamProtocolMarshalType:
-		return gt.App.NewProtocolMarshal(b), nil
-	default:
-		return nil, fmt.Errorf("args [%s] Types not allowed", ptype)
-	}
-}
-
-func (gt *SessionSerialize) GetTypes() []string {
-	return []string{RPCParamSessionType}
-}
-
 func (gt *Gate) OnAppConfigurationLoaded(app module.App) {
 	//添加Session结构体的序列化操作类
 	gt.BaseModule.OnAppConfigurationLoaded(app) //这是必须的
-	err := app.AddRPCSerialize("gate", gt)
-	if err != nil {
-		log.Warning("Adding session structures failed to serialize interfaces %s", err.Error())
-	}
+	// err := app.AddRPCSerialize("gate", gt)
+	// if err != nil {
+	// 	log.Warning("Adding session structures failed to serialize interfaces %s", err.Error())
+	// }
 }
 func (gt *Gate) OnInit(subclass module.RPCModule, app module.App, settings *conf.ModuleSettings, opts ...gate.Option) {
 	gt.opts = gate.NewOptions(opts...)
@@ -331,3 +282,52 @@ func (gt *Gate) Run(closeSig chan bool) {
 func (gt *Gate) OnDestroy() {
 	gt.BaseModule.OnDestroy() //这是必须的
 }
+
+type SessionSerialize struct {
+	App module.App
+}
+
+/*
+*
+自定义rpc参数序列化反序列化  Session
+
+func (gt *SessionSerialize) Serialize(param interface{}) (ptype string, p []byte, err error) {
+	rv := reflect.ValueOf(param)
+	if rv.Kind() != reflect.Ptr || rv.IsNil() {
+		//不是指针
+		return "", nil, fmt.Errorf("Serialize [%v ] or not pointer type", rv.Type())
+	}
+	switch v2 := param.(type) {
+	case gate.Session:
+		bytes, err := v2.Serializable()
+		if err != nil {
+			return RPCParamSessionType, nil, err
+		}
+		return RPCParamSessionType, bytes, nil
+	case module.ProtocolMarshal:
+		bytes := v2.GetData()
+		return RPCParamProtocolMarshalType, bytes, nil
+	default:
+		return "", nil, fmt.Errorf("args [%s] Types not allowed", reflect.TypeOf(param))
+	}
+}
+
+func (gt *SessionSerialize) Deserialize(ptype string, b []byte) (param interface{}, err error) {
+	switch ptype {
+	case RPCParamSessionType:
+		mps, errs := NewSession(gt.App, b)
+		if errs != nil {
+			return nil, errs
+		}
+		return mps.Clone(), nil
+	case RPCParamProtocolMarshalType:
+		return gt.App.NewProtocolMarshal(b), nil
+	default:
+		return nil, fmt.Errorf("args [%s] Types not allowed", ptype)
+	}
+}
+
+func (gt *SessionSerialize) GetTypes() []string {
+	return []string{RPCParamSessionType}
+}
+*/

@@ -61,6 +61,7 @@ type App interface {
 
 	UpdateOptions(opts ...Option) error
 	SetMapRoute(fn func(app App, route string) string) error
+	GetModuleInited() func(app App, module Module)
 
 	// 获取服务实例(通过服务ID|服务类型,可设置选择器过滤)
 	GetRouteServer(service string, opts ...selector.SelectOption) (ServerSession, error) //获取经过筛选过的服务
@@ -75,16 +76,6 @@ type App interface {
 	Call(ctx context.Context, moduleType, _func string, param mqrpc.ParamOption, opts ...selector.SelectOption) (interface{}, error)
 	// Call RPC调用(无需等待结果)
 	CallNR(moduleType string, _func string, params ...interface{}) error
-
-	/**
-	添加一个 自定义参数序列化接口
-	gate,system 关键词一被占用请使用其他名称
-	*/
-	AddRPCSerialize(name string, iface mqrpc.RPCSerialize) error
-
-	GetRPCSerialize() map[string]mqrpc.RPCSerialize
-
-	GetModuleInited() func(app App, module Module)
 
 	// 回调
 	OnConfigurationLoaded(func(app App)) error

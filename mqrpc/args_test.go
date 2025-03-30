@@ -84,7 +84,7 @@ func call(ctx context.Context, _func string, params ...interface{}) (interface{}
 	var args [][]byte = make([][]byte, len(params))
 	for k, param := range params {
 		var err error = nil
-		ArgsType[k], args[k], err = Args2Bytes(nil, param)
+		ArgsType[k], args[k], err = Args2Bytes(param)
 		if err != nil {
 			return nil, fmt.Errorf("args[%d] error %s", k, err.Error())
 		}
@@ -115,7 +115,7 @@ func call(ctx context.Context, _func string, params ...interface{}) (interface{}
 	}
 	_runFunc(callInfo)
 
-	result, err := Bytes2Args(nil, callInfo.Result.ResultType, callInfo.Result.Result)
+	result, err := Bytes2Args(callInfo.Result.ResultType, callInfo.Result.Result)
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +159,7 @@ func _runFunc(callInfo *CallInfo) {
 				elemp = reflect.New(rv)
 			}
 
-			ret, err := Bytes2Args(nil, v, params[k])
+			ret, err := Bytes2Args(v, params[k])
 			if err != nil {
 				panic(err)
 				return
@@ -232,7 +232,7 @@ func _runFunc(callInfo *CallInfo) {
 	default:
 		panic(fmt.Sprintf("%s rpc func(%s) return error %s\n", "ModuleType", callInfo.RPCInfo.Fn, "func(....)(result interface{}, err error)"))
 	}
-	argsType, args, err := Args2Bytes(nil, rs[0])
+	argsType, args, err := Args2Bytes(rs[0])
 	if err != nil {
 		panic(err)
 	}

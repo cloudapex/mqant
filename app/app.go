@@ -26,8 +26,6 @@ import (
 	"syscall"
 	"time"
 
-	basegate "github.com/liangdas/mqant/gate/base"
-
 	"github.com/liangdas/mqant/conf"
 	"github.com/liangdas/mqant/log"
 	"github.com/liangdas/mqant/module"
@@ -46,7 +44,6 @@ func NewApp(opts ...module.Option) module.App {
 	app := new(DefaultApp)
 	app.opts = options
 	options.Selector.Init(selector.SetWatcher(app.Watcher))
-	app.rpcserializes = map[string]mqrpc.RPCSerialize{}
 	return app
 }
 
@@ -57,8 +54,8 @@ type DefaultApp struct {
 	opts          module.Options
 	defaultRoutes func(app module.App, Type string, hash string) module.ServerSession
 	//将一个RPC调用路由到新的路由上
-	mapRoute            func(app module.App, route string) string
-	rpcserializes       map[string]mqrpc.RPCSerialize
+	mapRoute func(app module.App, route string) string
+	//rpcserializes       map[string]mqrpc.RPCSerialize
 	configurationLoaded func(app module.App)
 	startup             func(app module.App)
 	moduleInited        func(app module.App, module module.Module)
@@ -74,9 +71,9 @@ func (app *DefaultApp) Run(mods ...module.Module) error {
 		app.configurationLoaded(app)
 	}
 
-	app.AddRPCSerialize("gate", &basegate.SessionSerialize{
-		App: app,
-	})
+	// app.AddRPCSerialize("gate", &basegate.SessionSerialize{
+	// 	App: app,
+	// })
 	// log.InitLog(app.opts.Debug, app.opts.ProcessID, app.opts.LogDir, cof.Log)
 	// log.InitBI(app.opts.Debug, app.opts.ProcessID, app.opts.BIDir, cof.BI)
 	log.Init(log.WithDebug(app.opts.Debug),
@@ -164,20 +161,6 @@ func (app *DefaultApp) GetProcessID() string {
 // WorkDir 获取进程工作目录
 func (app *DefaultApp) WorkDir() string {
 	return app.opts.WorkDir
-}
-
-// GetRPCSerialize 获取自定义参数序列化接口
-func (app *DefaultApp) GetRPCSerialize() map[string]mqrpc.RPCSerialize {
-	return app.rpcserializes
-}
-
-// AddRPCSerialize 添加自定义参数序列化接口
-func (app *DefaultApp) AddRPCSerialize(name string, Interface mqrpc.RPCSerialize) error {
-	if _, ok := app.rpcserializes[name]; ok {
-		return fmt.Errorf("The name(%s) has been occupied", name)
-	}
-	app.rpcserializes[name] = Interface
-	return nil
 }
 
 // Watcher 监视服务节点注销(ServerSession删除掉)
