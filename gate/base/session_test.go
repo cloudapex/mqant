@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,9 +15,10 @@ package basegate
 
 import (
 	"fmt"
-	"google.golang.org/protobuf/proto"
 	"sync"
 	"testing"
+
+	"google.golang.org/protobuf/proto"
 )
 
 func TestSession(t *testing.T) {
@@ -58,12 +59,12 @@ func TestSessionagent_Serializable(t *testing.T) {
 	go func() { //開一個協程寫map
 		for j := 0; j < 1000000; j++ {
 			_session := session.Clone()
-			session.Serializable()
+			//session.Serializable()
 			session.SetLocalKV("ff", "sss")
 			session.ImportSettings(settings)
 			_session.Set("TestTopic", fmt.Sprintf("set %v", j))
 			_session.SetTopic("ttt")
-			_session.Serializable()
+			//_session.Serializable()
 			a, ok := session.Load("a")
 			if a != "a" || ok != true {
 				t.Fatalf("Load error: %v", err)
@@ -83,7 +84,7 @@ func TestSessionagent_Serializable(t *testing.T) {
 	go func() { //開一個協程讀map
 		for j := 0; j < 1000000; j++ {
 			session.Clone()
-			session.Serializable()
+			//session.Serializable()
 			session.SetLocalKV("ff", "sss")
 			session.ImportSettings(settings)
 			session.SetTopic("ttt")

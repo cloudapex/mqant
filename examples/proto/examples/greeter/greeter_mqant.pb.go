@@ -7,7 +7,7 @@ package greeter
 // is compatible with the kratos package it is being compiled against.
 import (
 	"errors"
-	basemodule "github.com/liangdas/mqant/module/base"
+	modulebase "github.com/liangdas/mqant/module/base"
 	client "github.com/liangdas/mqant/module"
 	"github.com/liangdas/mqant/mqrpc"
 	"golang.org/x/net/context"
@@ -19,7 +19,7 @@ type Greeter interface {
 	Stream(in *Request) (out *Response, err error)
 }
 
-func RegisterGreeterTcpHandler(m *basemodule.BaseModule, ser Greeter) {
+func RegisterGreeterTcpHandler(m *modulebase.ModuleBase, ser Greeter) {
 	m.GetServer().RegisterGO("hello", ser.Hello)
 	m.GetServer().RegisterGO("stream", ser.Stream)
 }

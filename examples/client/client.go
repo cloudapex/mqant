@@ -8,7 +8,7 @@ import (
 	"github.com/liangdas/mqant/examples/proto/examples/greeter"
 	"github.com/liangdas/mqant/log"
 	"github.com/liangdas/mqant/module"
-	basemodule "github.com/liangdas/mqant/module/base"
+	modulebase "github.com/liangdas/mqant/module/base"
 )
 
 func main() {
@@ -33,7 +33,7 @@ func main() {
 }
 
 type Server struct {
-	basemodule.BaseModule
+	modulebase.ModuleBase
 	version string
 	// 模块名字
 	Name string
@@ -46,7 +46,7 @@ func (m *Server) GetApp() module.App {
 
 // OnInit() 初始化配置
 func (s *Server) OnInit(app module.App, settings *conf.ModuleSettings) {
-	s.BaseModule.Init(s, app, settings)
+	s.ModuleBase.Init(s, app, settings)
 }
 
 // Run() 运行服务
@@ -57,7 +57,7 @@ func (s *Server) Run(closeSig chan bool) {
 // 销毁服务
 func (s *Server) OnDestroy() {
 	//一定别忘了继承
-	s.BaseModule.OnDestroy()
+	s.ModuleBase.OnDestroy()
 	s.GetServer().OnDestroy()
 }
 

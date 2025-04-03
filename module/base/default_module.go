@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Package basemodule 模块管理
-package basemodule
+package modulebase
 
 import (
 	"github.com/liangdas/mqant/conf"

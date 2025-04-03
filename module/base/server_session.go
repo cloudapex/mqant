@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Package basemodule 服务节点实例定义
-package basemodule
+package modulebase
 
 import (
 	"context"

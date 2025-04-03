@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Package basemodule  模块管理器
-package basemodule
+package modulebase
 
 import (
 	"fmt"

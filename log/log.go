@@ -110,8 +110,8 @@ func TDebug(span TraceSpan, format string, a ...interface{}) {
 	if span != nil {
 		LogBeego().Debug(
 			&beegolog.BeegoTraceSpan{
-				Trace: span.TraceId(),
-				Span:  span.SpanId(),
+				Trace: span.TraceID(),
+				Span:  span.SpanID(),
 			}, format, a...)
 	} else {
 		LogBeego().Debug(nil, format, a...)
@@ -123,8 +123,8 @@ func TInfo(span TraceSpan, format string, a ...interface{}) {
 	if span != nil {
 		LogBeego().Info(
 			&beegolog.BeegoTraceSpan{
-				Trace: span.TraceId(),
-				Span:  span.SpanId(),
+				Trace: span.TraceID(),
+				Span:  span.SpanID(),
 			}, format, a...)
 	} else {
 		LogBeego().Info(nil, format, a...)
@@ -136,8 +136,8 @@ func TError(span TraceSpan, format string, a ...interface{}) {
 	if span != nil {
 		LogBeego().Error(
 			&beegolog.BeegoTraceSpan{
-				Trace: span.TraceId(),
-				Span:  span.SpanId(),
+				Trace: span.TraceID(),
+				Span:  span.SpanID(),
 			}, format, a...)
 	} else {
 		LogBeego().Error(nil, format, a...)
@@ -149,8 +149,8 @@ func TWarning(span TraceSpan, format string, a ...interface{}) {
 	if span != nil {
 		LogBeego().Warning(
 			&beegolog.BeegoTraceSpan{
-				Trace: span.TraceId(),
-				Span:  span.SpanId(),
+				Trace: span.TraceID(),
+				Span:  span.SpanID(),
 			}, format, a...)
 	} else {
 		LogBeego().Warning(nil, format, a...)

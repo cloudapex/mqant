@@ -21,7 +21,7 @@ import (
 	"github.com/liangdas/mqant/conf"
 	"github.com/liangdas/mqant/gate"
 	"github.com/liangdas/mqant/module"
-	basemodule "github.com/liangdas/mqant/module/base"
+	modulebase "github.com/liangdas/mqant/module/base"
 	"github.com/liangdas/mqant/network"
 )
 
@@ -30,11 +30,11 @@ var RPCParamProtocolMarshalType = gate.RPCParamProtocolMarshalType
 
 type Gate struct {
 	//module.RPCSerialize
-	basemodule.BaseModule
+	modulebase.ModuleBase
 	opts       gate.Options
-	judgeGuest func(session gate.Session) bool
+	judgeGuest func(session gate.Session) bool // 是否游客
 
-	createAgent func() gate.Agent
+	createAgent func() gate.Agent // 创建客户端代理
 }
 
 func (gt *Gate) defaultCreateAgentd() gate.Agent {
@@ -164,7 +164,7 @@ func (gt *Gate) GetTypes() []string {
 
 func (gt *Gate) OnAppConfigurationLoaded(app module.App) {
 	//添加Session结构体的序列化操作类
-	gt.BaseModule.OnAppConfigurationLoaded(app) //这是必须的
+	gt.ModuleBase.OnAppConfigurationLoaded(app) //这是必须的
 	// err := app.AddRPCSerialize("gate", gt)
 	// if err != nil {
 	// 	log.Warning("Adding session structures failed to serialize interfaces %s", err.Error())
@@ -172,7 +172,7 @@ func (gt *Gate) OnAppConfigurationLoaded(app module.App) {
 }
 func (gt *Gate) OnInit(subclass module.RPCModule, app module.App, settings *conf.ModuleSettings, opts ...gate.Option) {
 	gt.opts = gate.NewOptions(opts...)
-	gt.BaseModule.Init(subclass, app, settings, gt.opts.Opts...) //这是必须的
+	gt.ModuleBase.Init(subclass, app, settings, gt.opts.Opts...) //这是必须的
 	if gt.opts.WsAddr == "" {
 		if WSAddr, ok := settings.Settings["WSAddr"]; ok {
 			gt.opts.WsAddr = WSAddr.(string)
@@ -280,7 +280,7 @@ func (gt *Gate) Run(closeSig chan bool) {
 }
 
 func (gt *Gate) OnDestroy() {
-	gt.BaseModule.OnDestroy() //这是必须的
+	gt.ModuleBase.OnDestroy() //这是必须的
 }
 
 type SessionSerialize struct {

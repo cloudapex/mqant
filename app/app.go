@@ -29,7 +29,7 @@ import (
 	"github.com/liangdas/mqant/conf"
 	"github.com/liangdas/mqant/log"
 	"github.com/liangdas/mqant/module"
-	basemodule "github.com/liangdas/mqant/module/base"
+	modulebase "github.com/liangdas/mqant/module/base"
 	"github.com/liangdas/mqant/module/modules"
 	"github.com/liangdas/mqant/mqrpc"
 	"github.com/liangdas/mqant/registry"
@@ -87,7 +87,7 @@ func (app *DefaultApp) Run(mods ...module.Module) error {
 	log.Info("mqant %v starting...", app.opts.Version)
 
 	// 1 RegisterRunMod
-	manager := basemodule.NewModuleManager()
+	manager := modulebase.NewModuleManager()
 	manager.RegisterRunMod(modules.TimerModule()) // 先注册时间轮模块 每一个进程都默认运行
 	// 2 Register
 	for i := 0; i < len(mods); i++ {
@@ -244,7 +244,7 @@ func (app *DefaultApp) GetServersByType(serviceName string) []module.ServerSessi
 		for _, node := range service.Nodes {
 			session, ok := app.serverList.Load(node.Id)
 			if !ok {
-				s, err := basemodule.NewServerSession(app, serviceName, node)
+				s, err := modulebase.NewServerSession(app, serviceName, node)
 				if err != nil {
 					log.Warning("NewServerSession %v", err)
 				} else {
@@ -272,7 +272,7 @@ func (app *DefaultApp) GetServerBySelector(serviceName string, opts ...selector.
 	}
 	session, ok := app.serverList.Load(node.Id)
 	if !ok {
-		s, err := basemodule.NewServerSession(app, serviceName, node)
+		s, err := modulebase.NewServerSession(app, serviceName, node)
 		if err != nil {
 			return nil, err
 		}
