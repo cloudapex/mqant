@@ -5,9 +5,9 @@ import (
 	"context"
 	"net/http"
 
-	httpgateapi "github.com/liangdas/mqant/httpgate/api"
-	"github.com/liangdas/mqant/httpgate/errors"
-	go_api "github.com/liangdas/mqant/httpgate/proto"
+	httpgateapi "github.com/liangdas/mqant/gate/http/api"
+	"github.com/liangdas/mqant/gate/http/errors"
+	go_api "github.com/liangdas/mqant/gate/http/proto"
 	"github.com/liangdas/mqant/module"
 	"github.com/liangdas/mqant/mqrpc"
 )
