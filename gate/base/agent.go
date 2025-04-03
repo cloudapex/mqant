@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package basegate
+package gatebase
 
 import (
 	"bufio"
@@ -25,7 +25,7 @@ import (
 	"time"
 
 	"github.com/liangdas/mqant/gate"
-	"github.com/liangdas/mqant/gate/base/mqtt"
+	"github.com/liangdas/mqant/gate/gatebase/mqtt"
 	"github.com/liangdas/mqant/log"
 	"github.com/liangdas/mqant/module"
 	"github.com/liangdas/mqant/mqrpc"

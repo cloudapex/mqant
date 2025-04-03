@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Package basegate gate.Session
-package basegate
+package gatebase
 
 import (
 	"fmt"

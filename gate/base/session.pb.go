@@ -4,7 +4,7 @@
 // 	protoc        v3.7.0
 // source: session.proto
 
-package basegate
+package gatebase
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"

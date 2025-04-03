@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Package basegate handler
-package basegate
+package gatebase
 
 import (
 	"fmt"
