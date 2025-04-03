@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/liangdas/mqant/log"
+	"github.com/liangdas/mqant/module"
 	"github.com/liangdas/mqant/network"
 )
 
@@ -172,13 +173,18 @@ type Agent interface {
 
 // Gate 网关代理定义
 type Gate interface {
+	module.RPCModule
+
 	Options() Options
+
 	GetGateHandler() GateHandler
 	GetAgentLearner() AgentLearner
 	GetSessionLearner() SessionLearner
 	GetStorageHandler() StorageHandler
 	GetRouteHandler() RouteHandler
-	GetJudgeGuest() func(session Session) bool
-	NewSession(data []byte) (Session, error)
-	NewSessionByMap(data map[string]interface{}) (Session, error)
+	GetSendMessageHook() SendMessageHook
+	GetGuestJudger() func(session Session) bool
+
+	// NewSession(data []byte) (Session, error)
+	// NewSessionByMap(data map[string]interface{}) (Session, error)
 }

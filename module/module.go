@@ -92,16 +92,16 @@ type App interface {
 
 // Module 基本模块定义
 type Module interface {
-	Version() string //模块版本
 	GetType() string //模块类型
+	Version() string //模块版本
 	GetApp() App
 
 	Run(closeSig chan bool)
 
 	OnInit(app App, settings *conf.ModuleSettings)
 	OnDestroy()
-	OnAppConfigurationLoaded(app App)            //当App初始化时调用，这个接口不管这个模块是否在这个进程运行都会调用
-	OnConfChanged(settings *conf.ModuleSettings) //为以后动态服务发现做准备(目前没用)
+	OnAppConfigurationLoaded(app App)            // 当App初始化时调用，这个接口不管这个模块是否在这个进程运行都会调用
+	OnConfChanged(settings *conf.ModuleSettings) // 为以后动态服务发现做准备(目前没用)
 }
 
 // RPCModule RPC模块定义

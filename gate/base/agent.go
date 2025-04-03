@@ -25,7 +25,7 @@ import (
 	"time"
 
 	"github.com/liangdas/mqant/gate"
-	"github.com/liangdas/mqant/gate/gatebase/mqtt"
+	"github.com/liangdas/mqant/gate/base/mqtt"
 	"github.com/liangdas/mqant/log"
 	"github.com/liangdas/mqant/module"
 	"github.com/liangdas/mqant/mqrpc"
@@ -173,7 +173,7 @@ func (age *agent) Run() (err error) {
 		log.Error("gate create agent fail", err.Error())
 		return
 	}
-	age.session.JudgeGuest(age.gate.GetJudgeGuest())
+	age.session.JudgeGuest(age.gate.GetGuestJudger())
 	age.session.CreateTrace() //代码跟踪
 	//回复客户端 CONNECT
 	err = mqtt.WritePack(mqtt.GetConnAckPack(0), age.w)
@@ -374,8 +374,8 @@ func (age *agent) WriteMsg(topic string, body []byte) error {
 		return errors.New("mqtt.Client nil")
 	}
 	age.sendNum++
-	if age.gate.Options().SendMessageHook != nil {
-		bb, err := age.gate.Options().SendMessageHook(age.GetSession(), topic, body)
+	if hook := age.gate.GetSendMessageHook(); hook != nil {
+		bb, err := hook(age.GetSession(), topic, body)
 		if err != nil {
 			return err
 		}
