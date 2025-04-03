@@ -188,12 +188,12 @@ func (m *BaseModule) GetServerBySelector(serviceName string, opts ...selector.Se
 	return m.App.GetServerBySelector(serviceName, opts...)
 }
 
-// Call  Call
-func (m *BaseModule) Call(moduleType string, _func string, params mqrpc.ParamOption, opts ...selector.SelectOption) (interface{}, error) {
-	return m.App.Call(m.GetSubclass(), moduleType, _func, params, opts...)
+// Call  RPC调用(需要等待结果)
+func (m *BaseModule) Call(ctx context.Context, moduleType string, _func string, params mqrpc.ParamOption, opts ...selector.SelectOption) (interface{}, error) {
+	return m.App.Call(ctx, moduleType, _func, params, opts...)
 }
 
-// CallNR  CallNR
+// CallNR  RPC调用(需要等待结果)
 func (m *BaseModule) CallNR(moduleType string, _func string, params ...interface{}) (err error) {
 	return m.App.CallNR(moduleType, _func, params...)
 }

@@ -122,6 +122,6 @@ type RPCModule interface {
 	// 通过服务类型(moduleType)获取服务实例(可设置选择器)
 	GetServerBySelector(serviceName string, opts ...selector.SelectOption) (ServerSession, error)
 
-	Call(moduleType string, _func string, params mqrpc.ParamOption, opts ...selector.SelectOption) (interface{}, error)
+	Call(ctx context.Context, moduleType string, _func string, params mqrpc.ParamOption, opts ...selector.SelectOption) (interface{}, error)
 	CallNR(moduleType string, _func string, params ...interface{}) error
 }

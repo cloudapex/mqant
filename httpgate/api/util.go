@@ -1,13 +1,14 @@
-package httpgatewayapi
+package httpgateapi
 
 import (
 	"fmt"
-	api "github.com/liangdas/mqant/httpgateway/proto"
 	"io/ioutil"
 	"mime"
 	"net"
 	"net/http"
 	"strings"
+
+	api "github.com/liangdas/mqant/httpgate/proto"
 )
 
 func RequestToProto(r *http.Request) (*api.Request, error) {

@@ -89,10 +89,6 @@ func (sesid *sessionagent) GetNetwork() string {
 	return sesid.session.GetNetwork()
 }
 
-func (sesid *sessionagent) GetUserId() string {
-	return sesid.GetUserID()
-}
-
 func (sesid *sessionagent) GetUserID() string {
 	return sesid.session.GetUserId()
 }
@@ -105,24 +101,12 @@ func (sesid *sessionagent) GetUserIDInt64() int64 {
 	return uid64
 }
 
-func (sesid *sessionagent) GetUserIdInt64() int64 {
-	return sesid.GetUserIDInt64()
-}
-
 func (sesid *sessionagent) GetSessionID() string {
 	return sesid.session.GetSessionId()
 }
 
-func (sesid *sessionagent) GetSessionId() string {
-	return sesid.GetSessionID()
-}
-
 func (sesid *sessionagent) GetServerID() string {
 	return sesid.session.GetServerId()
-}
-
-func (sesid *sessionagent) GetServerId() string {
-	return sesid.GetServerID()
 }
 
 func (sesid *sessionagent) SettingsRange(f func(k, v string) bool) {
@@ -175,20 +159,11 @@ func (sesid *sessionagent) SetUserID(userid string) {
 	sesid.session.UserId = userid
 	sesid.lock.Unlock()
 }
-func (sesid *sessionagent) SetUserId(userid string) {
-	sesid.SetUserID(userid)
-}
 func (sesid *sessionagent) SetSessionID(sessionid string) {
 	sesid.session.SessionId = sessionid
 }
-func (sesid *sessionagent) SetSessionId(sessionid string) {
-	sesid.SetSessionID(sessionid)
-}
 func (sesid *sessionagent) SetServerID(serverid string) {
 	sesid.session.ServerId = serverid
-}
-func (sesid *sessionagent) SetServerId(serverid string) {
-	sesid.SetServerID(serverid)
 }
 func (sesid *sessionagent) SetSettings(settings map[string]string) {
 	sesid.lock.Lock()
@@ -277,16 +252,6 @@ func (sesid *sessionagent) update(s gate.Session) error {
 	return nil
 }
 
-func (sesid *sessionagent) Serializable() ([]byte, error) {
-	sesid.lock.RLock()
-	data, err := proto.Marshal(sesid.session)
-	sesid.lock.RUnlock()
-	if err != nil {
-		return nil, err
-	} // 进行解码
-	return data, nil
-}
-
 func (sesid *sessionagent) Marshal() ([]byte, error) {
 	sesid.lock.RLock()
 	data, err := proto.Marshal(sesid.session)
@@ -324,7 +289,7 @@ func (sesid *sessionagent) Update() (err string) {
 		err = fmt.Sprintf("Service not found id(%s)", sesid.session.ServerId)
 		return
 	}
-	result, _err := server.Call(nil, "Update", log.CreateTrace(sesid.TraceId(), sesid.SpanId()), sesid.session.SessionId)
+	result, _err := server.Call(nil, "Update", log.CreateTrace(sesid.TraceID(), sesid.SpanID()), sesid.session.SessionId)
 	if _err != nil {
 		err = _err.Error()
 		if result != nil {
@@ -345,7 +310,7 @@ func (sesid *sessionagent) Bind(Userid string) (err string) {
 		err = fmt.Sprintf("Service not found id(%s)", sesid.session.ServerId)
 		return
 	}
-	result, _err := server.Call(nil, "Bind", log.CreateTrace(sesid.TraceId(), sesid.SpanId()), sesid.session.SessionId, Userid)
+	result, _err := server.Call(nil, "Bind", log.CreateTrace(sesid.TraceID(), sesid.SpanID()), sesid.session.SessionId, Userid)
 	if _err != nil {
 		err = _err.Error()
 		if result != nil {
@@ -366,7 +331,7 @@ func (sesid *sessionagent) UnBind() (err string) {
 		err = fmt.Sprintf("Service not found id(%s)", sesid.session.ServerId)
 		return
 	}
-	result, _err := server.Call(nil, "UnBind", log.CreateTrace(sesid.TraceId(), sesid.SpanId()), sesid.session.SessionId)
+	result, _err := server.Call(nil, "UnBind", log.CreateTrace(sesid.TraceID(), sesid.SpanID()), sesid.session.SessionId)
 	if _err != nil {
 		err = _err.Error()
 		if result != nil {
@@ -393,7 +358,7 @@ func (sesid *sessionagent) Push() (err string) {
 		tmp[k] = v
 	}
 	sesid.lock.Unlock()
-	result, _err := server.Call(nil, "Push", log.CreateTrace(sesid.TraceId(), sesid.SpanId()), sesid.session.SessionId, tmp)
+	result, _err := server.Call(nil, "Push", log.CreateTrace(sesid.TraceID(), sesid.SpanID()), sesid.session.SessionId, tmp)
 	if _err != nil {
 		err = _err.Error()
 		if result != nil {
@@ -413,7 +378,7 @@ func (sesid *sessionagent) Set(key string, value string) (err string) {
 		sesid.session.ServerId,
 		"Set",
 		mqrpc.Param(
-			log.CreateTrace(sesid.TraceId(), sesid.SpanId()),
+			log.CreateTrace(sesid.TraceID(), sesid.SpanID()),
 			sesid.session.SessionId,
 			key,
 			value,
@@ -451,7 +416,7 @@ func (sesid *sessionagent) SetBatch(settings map[string]string) (err string) {
 		err = fmt.Sprintf("Service not found id(%s)", sesid.session.ServerId)
 		return
 	}
-	result, _err := server.Call(nil, "Push", log.CreateTrace(sesid.TraceId(), sesid.SpanId()), sesid.session.SessionId, settings)
+	result, _err := server.Call(nil, "Push", log.CreateTrace(sesid.TraceID(), sesid.SpanID()), sesid.session.SessionId, settings)
 	if _err != nil {
 		err = _err.Error()
 		if result != nil {
@@ -494,7 +459,7 @@ func (sesid *sessionagent) Remove(key string) (errStr string) {
 		sesid.session.ServerId,
 		"Remove",
 		mqrpc.Param(
-			log.CreateTrace(sesid.TraceId(), sesid.SpanId()),
+			log.CreateTrace(sesid.TraceID(), sesid.SpanID()),
 			sesid.session.SessionId,
 			key,
 		),
@@ -517,7 +482,7 @@ func (sesid *sessionagent) Send(topic string, body []byte) string {
 	if e != nil {
 		return fmt.Sprintf("Service not found id(%s)", sesid.session.ServerId)
 	}
-	_, err := server.Call(nil, "Send", log.CreateTrace(sesid.TraceId(), sesid.SpanId()), sesid.session.SessionId, topic, body)
+	_, err := server.Call(nil, "Send", log.CreateTrace(sesid.TraceID(), sesid.SpanID()), sesid.session.SessionId, topic, body)
 	return err.Error()
 }
 
@@ -529,7 +494,7 @@ func (sesid *sessionagent) SendBatch(Sessionids string, topic string, body []byt
 	if e != nil {
 		return 0, fmt.Sprintf("Service not found id(%s)", sesid.session.ServerId)
 	}
-	count, err := server.Call(nil, "SendBatch", log.CreateTrace(sesid.TraceId(), sesid.SpanId()), Sessionids, topic, body)
+	count, err := server.Call(nil, "SendBatch", log.CreateTrace(sesid.TraceID(), sesid.SpanID()), Sessionids, topic, body)
 	if err != nil {
 		return 0, err.Error()
 	}
@@ -544,7 +509,7 @@ func (sesid *sessionagent) IsConnect(userId string) (bool, string) {
 	if e != nil {
 		return false, fmt.Sprintf("Service not found id(%s)", sesid.session.ServerId)
 	}
-	result, err := server.Call(nil, "IsConnect", log.CreateTrace(sesid.TraceId(), sesid.SpanId()), sesid.session.SessionId, userId)
+	result, err := server.Call(nil, "IsConnect", log.CreateTrace(sesid.TraceID(), sesid.SpanID()), sesid.session.SessionId, userId)
 	if err != nil {
 		return false, err.Error()
 	}
@@ -559,7 +524,7 @@ func (sesid *sessionagent) SendNR(topic string, body []byte) string {
 	if e != nil {
 		return fmt.Sprintf("Service not found id(%s)", sesid.session.ServerId)
 	}
-	e = server.CallNR("Send", log.CreateTrace(sesid.TraceId(), sesid.SpanId()), sesid.session.SessionId, topic, body)
+	e = server.CallNR("Send", log.CreateTrace(sesid.TraceID(), sesid.SpanID()), sesid.session.SessionId, topic, body)
 	if e != nil {
 		return e.Error()
 	}
@@ -583,7 +548,7 @@ func (sesid *sessionagent) Close() (err string) {
 		err = fmt.Sprintf("Service not found id(%s)", sesid.session.ServerId)
 		return
 	}
-	_, _err := server.Call(nil, "Close", log.CreateTrace(sesid.TraceId(), sesid.SpanId()), sesid.session.SessionId)
+	_, _err := server.Call(nil, "Close", log.CreateTrace(sesid.TraceID(), sesid.SpanID()), sesid.session.SessionId)
 	return _err.Error()
 }
 
@@ -626,16 +591,8 @@ func (sesid *sessionagent) TraceID() string {
 	return sesid.session.TraceId
 }
 
-func (sesid *sessionagent) TraceId() string {
-	return sesid.TraceID()
-}
-
 func (sesid *sessionagent) SpanID() string {
 	return sesid.session.SpanId
-}
-
-func (sesid *sessionagent) SpanId() string {
-	return sesid.SpanID()
 }
 
 func (sesid *sessionagent) ExtractSpan() log.TraceSpan {
@@ -663,7 +620,7 @@ func (sesid *sessionagent) IsGuest() bool {
 	if sesid.judgeGuest != nil {
 		return sesid.judgeGuest(sesid)
 	}
-	if sesid.GetUserId() == "" {
+	if sesid.GetUserID() == "" {
 		return true
 	}
 	return false

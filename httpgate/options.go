@@ -12,20 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//Package httpgateway 网关配置
-package httpgateway
+// Package httpgateway 网关配置
+package httpgate
 
 import (
 	"errors"
 	"fmt"
-	"github.com/liangdas/mqant/module"
-	"github.com/liangdas/mqant/registry"
-	"github.com/liangdas/mqant/selector"
 	"math/rand"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/liangdas/mqant/module"
+	"github.com/liangdas/mqant/registry"
+	"github.com/liangdas/mqant/selector"
 )
 
 // Service represents an API service

@@ -3,6 +3,7 @@ package mqrpc
 import (
 	"bytes"
 	"encoding/gob"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -233,6 +234,30 @@ func Proto(pObj interface{}, ret callResult) error {
 		}
 	} else {
 		return fmt.Errorf("pObj [%v] not *proto.Message type", rv.Type())
+	}
+	return fmt.Errorf("mqrpc: unexpected type for %v, got type %T", reflect.ValueOf(ret.Reply), ret.Reply)
+}
+
+// Json Json
+func Json(pObj interface{}, ret callResult) error {
+	if ret.Error != nil {
+		return ret.Error
+	}
+
+	rv := reflect.ValueOf(pObj)
+	if rv.Kind() != reflect.Ptr { // 不是指针
+		return fmt.Errorf("pObj [%v] not *mqrpc.Json pointer type", rv.Type())
+	}
+
+	switch r := ret.Reply.(type) {
+	case []byte:
+		err := json.Unmarshal(r, pObj)
+		if err != nil {
+			return err
+		}
+		return nil
+	case nil:
+		return ErrNil
 	}
 	return fmt.Errorf("mqrpc: unexpected type for %v, got type %T", reflect.ValueOf(ret.Reply), ret.Reply)
 }

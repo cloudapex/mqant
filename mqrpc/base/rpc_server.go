@@ -287,6 +287,16 @@ func (s *RPCServer) _runFunc(start time.Time, functionInfo *mqrpc.FunctionInfo, 
 				} else {
 					in[k] = elemp.Elem() // 接收 值变量
 				}
+			case strings.HasPrefix(v, mqrpc.JSON):
+				if err := mqrpc.Json(elemp.Interface(), mqrpc.RpcResult(ret, nil)); err != nil {
+					s._errorCallback(start, callInfo, callInfo.RPCInfo.Cid, err.Error())
+					return
+				}
+				if isPtr {
+					in[k] = reflect.ValueOf(elemp.Interface()) //接收 指针变量
+				} else {
+					in[k] = elemp.Elem() // 接收 值变量
+				}
 			case strings.HasPrefix(v, mqrpc.GOB):
 				if err := mqrpc.Gob(elemp.Interface(), mqrpc.RpcResult(ret, nil)); err != nil {
 					s._errorCallback(start, callInfo, callInfo.RPCInfo.Cid, err.Error())

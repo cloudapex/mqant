@@ -40,6 +40,7 @@ var (
 	TRACE   = "trace"   //log.TraceSpanImp
 	MARSHAL = "marshal" //mqrpc.Marshaler
 	PBPROTO = "pbproto" //proto.Message
+	JSON    = "json"    //json.Marshaler(只适用于反序列)
 	GOB     = "gob"     //go gob(default struct)
 )
 
@@ -167,6 +168,8 @@ func Bytes2Args(argsType string, args []byte) (interface{}, error) {
 	case strings.HasPrefix(argsType, MARSHAL): // 不能直接解出对象
 		return args, nil
 	case strings.HasPrefix(argsType, PBPROTO): // 不能直接解出对象
+		return args, nil
+	case strings.HasPrefix(argsType, JSON): // 不能直接解出对象
 		return args, nil
 	case strings.HasPrefix(argsType, GOB): // 不能直接解出对象
 		return args, nil

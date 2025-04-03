@@ -1,4 +1,4 @@
-package httpgatewayapi
+package httpgateapi
 
 import (
 	"net/http"

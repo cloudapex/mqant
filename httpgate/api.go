@@ -1,13 +1,13 @@
 // Package httpgateway provides an http-rpc handler which provides the entire http request over rpc
-package httpgateway
+package httpgate
 
 import (
 	"context"
 	"net/http"
 
-	httpgatewayapi "github.com/liangdas/mqant/httpgateway/api"
-	"github.com/liangdas/mqant/httpgateway/errors"
-	go_api "github.com/liangdas/mqant/httpgateway/proto"
+	httpgateapi "github.com/liangdas/mqant/httpgate/api"
+	"github.com/liangdas/mqant/httpgate/errors"
+	go_api "github.com/liangdas/mqant/httpgate/proto"
 	"github.com/liangdas/mqant/module"
 	"github.com/liangdas/mqant/mqrpc"
 )
@@ -20,7 +20,7 @@ type APIHandler struct {
 
 // API handler is the default handler which takes api.Request and returns api.Response
 func (a *APIHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	request, err := httpgatewayapi.RequestToProto(r)
+	request, err := httpgateapi.RequestToProto(r)
 	if err != nil {
 		er := errors.InternalServerError("httpgateway", err.Error())
 		w.Header().Set("Content-Type", "application/json")

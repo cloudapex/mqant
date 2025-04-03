@@ -22,11 +22,11 @@ type TraceSpan interface {
 
 	// Trace is the root ID of the tree that contains all of the spans
 	// related to this one.
-	TraceId() string
+	TraceID() string
 
 	// Span is an ID that probabilistically uniquely identifies this
 	// span.
-	SpanId() string
+	SpanID() string
 
 	ExtractSpan() TraceSpan
 }
@@ -37,21 +37,9 @@ type TraceSpanImp struct {
 	Span  string `json:"Span"`
 }
 
-// TraceId TraceId
-// Deprecated: 因为命名规范问题函数将废弃,请用TraceID代替
-func (t *TraceSpanImp) TraceId() string {
-	return t.Trace
-}
-
 // TraceID TraceID
 func (t *TraceSpanImp) TraceID() string {
 	return t.Trace
-}
-
-// SpanId SpanId
-// Deprecated: 因为命名规范问题函数将废弃,请用SpanID代替
-func (t *TraceSpanImp) SpanId() string {
-	return t.Span
 }
 
 // SpanID SpanID

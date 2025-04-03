@@ -16,9 +16,10 @@
 package gate
 
 import (
+	"time"
+
 	"github.com/liangdas/mqant/log"
 	"github.com/liangdas/mqant/network"
-	"time"
 )
 
 // RPCParamSessionType gate.session 类型
@@ -49,24 +50,16 @@ type GateHandler interface {
 	OnDestroy()                                                                  //退出事件,主动关闭所有的连接
 }
 
-//Session session代表一个客户端连接,不是线程安全的
+// Session session代表一个客户端连接,不是线程安全的
 type Session interface {
 	GetIP() string
 	GetTopic() string
 	GetNetwork() string
-	// Deprecated: 因为命名规范问题函数将废弃,请用GetUserID代替
-	GetUserId() string
 	GetUserID() string
-	GetUserIdInt64() int64
-	// Deprecated: 因为命名规范问题函数将废弃,请用GetUserIDInt64代替
 	GetUserIDInt64() int64
-	// Deprecated: 因为命名规范问题函数将废弃,请用GetSessionID代替
-	GetSessionId() string
 	GetSessionID() string
-	// Deprecated: 因为命名规范问题函数将废弃,请用GetServerID代替
-	GetServerId() string
 	GetServerID() string
-	//SettingsRange 配合一个回调函数进行遍历操作，通过回调函数返回内部遍历出来的值。Range 参数中的回调函数的返回值功能是：需要继续迭代遍历时，返回 true；终止迭代遍历时，返回 false。
+	//SettingsRange 配合一个回调函数进行遍历操作，通过回调函数返回内部遍历出来的值。回调函数的返回值：需要继续迭代遍历时，返回 true；终止迭代遍历时，返回 false。
 	SettingsRange(func(k, v string) bool)
 	// 合并两个map 并且以 agent.(Agent).GetSession().Settings 已有的优先
 	ImportSettings(map[string]string) error
@@ -75,14 +68,8 @@ type Session interface {
 	SetIP(ip string)
 	SetTopic(topic string)
 	SetNetwork(network string)
-	// Deprecated: 因为命名规范问题函数将废弃,请用SetUserID代替
-	SetUserId(userid string)
 	SetUserID(userid string)
-	// Deprecated: 因为命名规范问题函数将废弃,请用SetSessionID代替
-	SetSessionId(sessionid string)
 	SetSessionID(sessionid string)
-	// Deprecated: 因为命名规范问题函数将废弃,请用SetServerId代替
-	SetServerId(serverid string)
 	SetServerID(serverid string)
 	SetSettings(settings map[string]string)
 	//CloneSettings
@@ -91,7 +78,7 @@ type Session interface {
 	RemoveLocalKV(key string) error
 	//网关本地的额外数据,不会再rpc中传递
 	SetLocalUserData(data interface{}) error
-	Serializable() ([]byte, error)
+	//Serializable() ([]byte, error)
 	Update() (err string)
 	Bind(UserID string) (err string)
 	UnBind() (err string)
@@ -116,16 +103,7 @@ type Session interface {
 	Clone() Session
 
 	CreateTrace()
-	// Deprecated: 因为命名规范问题函数将废弃,请用TraceID代替
-	TraceId() string
 	TraceID() string
-
-	// Span is an ID that probabilistically uniquely identifies this
-	// span.
-	// Deprecated: 因为命名规范问题函数将废弃,请用SpanID代替
-	SpanId() string
-	SpanID() string
-
 	ExtractSpan() log.TraceSpan
 }
 
