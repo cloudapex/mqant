@@ -77,7 +77,7 @@ func (u *URIRoute) OnRoute(session gate.Session, topic string, msg []byte) (bool
 	if err != nil {
 		return needreturn, nil, errors.Errorf("topic is not uri %v", err.Error())
 	}
-	var ArgsType []string = nil
+	var argsType []string = nil
 	var args [][]byte = nil
 
 	_func := uu.Path
@@ -88,7 +88,7 @@ func (u *URIRoute) OnRoute(session gate.Session, topic string, msg []byte) (bool
 	if _, ok := m["msg_id"]; !ok {
 		needreturn = false
 	}
-	ArgsType = make([]string, 2)
+	argsType = make([]string, 2)
 	args = make([][]byte, 2)
 	session.SetTopic(topic)
 	var serverSession module.ServerSession
@@ -147,37 +147,37 @@ func (u *URIRoute) OnRoute(session gate.Session, topic string, msg []byte) (bool
 		if err != nil {
 			return needreturn, nil, errors.Errorf("The JSON format is incorrect %v", err)
 		}
-		ArgsType[1] = mqrpc.MAP
+		argsType[1] = mqrpc.MAP
 		args[1] = msg
 	} else {
-		ArgsType[1] = mqrpc.BYTES
+		argsType[1] = mqrpc.BYTES
 		args[1] = msg
 	}
 	s := session.Clone()
 	s.SetTopic(topic)
 	if needreturn {
-		ArgsType[0] = gate.RPCParamSessionType
+		argsType[0] = gate.RPCParamSessionType
 		b, err := s.Serializable()
 		if err != nil {
 			return needreturn, nil, err
 		}
 		args[0] = b
 		ctx, _ := context.WithTimeout(context.TODO(), u.CallTimeOut)
-		result, e := serverSession.CallArgs(ctx, _func, ArgsType, args)
+		result, e := serverSession.CallArgs(ctx, _func, argsType, args)
 		if e != nil {
 			return needreturn, result, e
 		}
 		return needreturn, result, nil
 	}
 
-	ArgsType[0] = gate.RPCParamSessionType
+	argsType[0] = gate.RPCParamSessionType
 	b, err := s.Serializable()
 	if err != nil {
 		return needreturn, nil, err
 	}
 	args[0] = b
 
-	e := serverSession.CallNRArgs(_func, ArgsType, args)
+	e := serverSession.CallNRArgs(_func, argsType, args)
 	if e != nil {
 		log.Warning("Gate rpc", e.Error())
 		return needreturn, nil, e

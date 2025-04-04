@@ -29,9 +29,6 @@ var RPCParamSessionType = "SESSION"
 // RPCParamProtocolMarshalType ProtocolMarshal类型
 var RPCParamProtocolMarshalType = "ProtocolMarshal"
 
-// JudgeGuest 判断是否为游客
-var JudgeGuest func(session Session) bool
-
 // GateHandler net代理服务处理器
 type GateHandler interface {
 	GetAgent(Sessionid string) (Agent, error)
@@ -53,6 +50,7 @@ type GateHandler interface {
 
 // Session session代表一个客户端连接,不是线程安全的
 type Session interface {
+	GetApp() module.App
 	GetIP() string
 	GetTopic() string
 	GetNetwork() string
@@ -66,6 +64,7 @@ type Session interface {
 	ImportSettings(map[string]string) error
 	//网关本地的额外数据,不会再rpc中传递
 	LocalUserData() interface{}
+	SetApp(module.App)
 	SetIP(ip string)
 	SetTopic(topic string)
 	SetNetwork(network string)
@@ -99,13 +98,13 @@ type Session interface {
 	//是否是访客(未登录) ,默认判断规则为 userId==""代表访客
 	IsGuest() bool
 	//设置自动的访客判断函数,记得一定要在全局的时候设置这个值,以免部分模块因为未设置这个判断函数造成错误的判断
-	JudgeGuest(judgeGuest func(session Session) bool)
+	SetGuestJudger(Judger func(session Session) bool)
 	Close() (err string)
+	// 每次rpc调用都拷贝一份新的Session进行传输
 	Clone() Session
 
 	CreateTrace()
 	TraceID() string
-	ExtractSpan() log.TraceSpan
 }
 
 // StorageHandler Session信息持久化

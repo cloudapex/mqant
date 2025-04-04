@@ -173,7 +173,7 @@ func (age *agent) Run() (err error) {
 		log.Error("gate create agent fail", err.Error())
 		return
 	}
-	age.session.JudgeGuest(age.gate.GetGuestJudger())
+	age.session.SetGuestJudger(age.gate.GetGuestJudger())
 	age.session.CreateTrace() //代码跟踪
 	//回复客户端 CONNECT
 	err = mqtt.WritePack(mqtt.GetConnAckPack(0), age.w)
@@ -299,7 +299,7 @@ func (age *agent) recoverworker(pack *mqtt.Pack) {
 				}
 				return
 			}
-			var ArgsType []string = make([]string, 2)
+			var argsType []string = make([]string, 2)
 			var args [][]byte = make([][]byte, 2)
 			serverSession, err := age.module.GetRouteServer(topics[0])
 			if err != nil {
@@ -318,33 +318,33 @@ func (age *agent) recoverworker(pack *mqtt.Pack) {
 					}
 					return
 				}
-				ArgsType[1] = mqrpc.MAP
+				argsType[1] = mqrpc.MAP
 				args[1] = pub.GetMsg()
 			} else {
-				ArgsType[1] = mqrpc.BYTES
+				argsType[1] = mqrpc.BYTES
 				args[1] = pub.GetMsg()
 			}
 			session := age.GetSession().Clone()
 			session.SetTopic(*pub.GetTopic())
 			if msgid != "" {
-				ArgsType[0] = RPCParamSessionType
+				argsType[0] = RPCParamSessionType
 				b, err := session.Serializable()
 				if err != nil {
 					return
 				}
 				args[0] = b
 				ctx, _ := context.WithTimeout(context.TODO(), age.module.GetApp().Options().RPCExpired)
-				result, e := serverSession.CallArgs(ctx, topics[1], ArgsType, args)
+				result, e := serverSession.CallArgs(ctx, topics[1], argsType, args)
 				toResult(age, *pub.GetTopic(), result, e.Error())
 			} else {
-				ArgsType[0] = RPCParamSessionType
+				argsType[0] = RPCParamSessionType
 				b, err := session.Serializable()
 				if err != nil {
 					return
 				}
 				args[0] = b
 
-				e := serverSession.CallNRArgs(topics[1], ArgsType, args)
+				e := serverSession.CallNRArgs(topics[1], argsType, args)
 				if e != nil {
 					log.Warning("Gate rpc", e.Error())
 				}

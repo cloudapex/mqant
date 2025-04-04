@@ -15,6 +15,7 @@ package mqrpc
 
 import (
 	"bytes"
+	"context"
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
@@ -27,21 +28,22 @@ import (
 )
 
 var (
-	NULL    = "null"    //nil   null
-	BOOL    = "bool"    //bool
-	INT     = "int"     //int
-	LONG    = "long"    //long64
-	FLOAT   = "float"   //float32
-	DOUBLE  = "double"  //float64
-	BYTES   = "bytes"   //[]byte
-	STRING  = "string"  //string
-	MAP     = "map"     //map[string]interface{}
-	MAPSTR  = "mapstr"  //map[string]string{}
-	TRACE   = "trace"   //log.TraceSpanImp
-	MARSHAL = "marshal" //mqrpc.Marshaler
-	PBPROTO = "pbproto" //proto.Message
-	JSON    = "json"    //json.Marshaler(只适用于反序列)
-	GOB     = "gob"     //go gob(default struct)
+	NULL    = "null"    // nil   null
+	BOOL    = "bool"    // bool
+	INT     = "int"     // int
+	LONG    = "long"    // long64
+	FLOAT   = "float"   // float32
+	DOUBLE  = "double"  // float64
+	BYTES   = "bytes"   // []byte
+	STRING  = "string"  // string
+	MAP     = "map"     // map[string]interface{}
+	MAPSTR  = "mapstr"  // map[string]string{}
+	TRACE   = "trace"   // log.TraceSpanImp
+	Context = "context" // context
+	MARSHAL = "marshal" // mqrpc.Marshaler
+	PBPROTO = "pbproto" // proto.Message
+	JSON    = "json"    // json.Marshaler(只适用于反序列)
+	GOB     = "gob"     // go gob(default struct)
 )
 
 func Args2Bytes(arg interface{}) (string, []byte, error) {
@@ -76,19 +78,29 @@ func Args2Bytes(arg interface{}) (string, []byte, error) {
 			return MAPSTR, nil, err
 		}
 		return MAPSTR, bytes, nil
-	case log.TraceSpanImp: // 这两个内置的结构
-		bytes, err := json.Marshal(v2)
-		if err != nil {
-			return TRACE, nil, err
-		}
-		return TRACE, bytes, nil
-	case *log.TraceSpanImp: // 这两个内置的结构
-		bytes, err := json.Marshal(v2)
-		if err != nil {
-			return TRACE, nil, err
-		}
-		return TRACE, bytes, nil
 	default:
+
+		// for context.Context with Specified types
+		if v2, ok := arg.(context.Context); ok {
+			maps := map[string]interface{}{}
+			for k := range contextTransValues {
+				_v, _ok := v2.Value(k).(Marshaler)
+				if !_ok {
+					continue
+				}
+				b, err := _v.Marshal()
+				if err != nil {
+					return "", nil, fmt.Errorf("Args2Bytes args [%s] contextValues.marshal error %v", reflect.TypeOf(arg), err)
+				}
+				maps[string(k)] = b
+			}
+			bytes, err := mqtools.MapToBytes(maps)
+			if err != nil {
+				return Context, nil, err
+			}
+			return Context, bytes, nil
+		}
+		// 下面必须是struct
 		rv := reflect.ValueOf(arg)
 		if rv.Kind() != reflect.Ptr {
 			return "", nil, fmt.Errorf("Args2Bytes [%v] not pointer type", reflect.TypeOf(arg))
@@ -101,7 +113,7 @@ func Args2Bytes(arg interface{}) (string, []byte, error) {
 			return "", nil, fmt.Errorf("Args2Bytes [%v] not struct type", reflect.TypeOf(arg))
 		}
 
-		// use mqrpc.Marshaler
+		// struct for mqrpc.Marshaler
 		if v2, ok := arg.(Marshaler); ok {
 			b, err := v2.Marshal()
 			if err != nil {
@@ -109,7 +121,7 @@ func Args2Bytes(arg interface{}) (string, []byte, error) {
 			}
 			return fmt.Sprintf("%v@%v", MARSHAL, reflect.TypeOf(arg)), b, nil
 		}
-		// use proto.Message
+		// struct for proto.Message
 		if v2, ok := arg.(proto.Message); ok {
 			b, err := proto.Marshal(v2)
 			if err != nil {
@@ -118,7 +130,7 @@ func Args2Bytes(arg interface{}) (string, []byte, error) {
 			}
 			return fmt.Sprintf("%v@%v", PBPROTO, reflect.TypeOf(arg)), b, nil
 		}
-		// use gob coding (default)
+		// struct for gob.coding (default)
 		var buf bytes.Buffer
 		encoder := gob.NewEncoder(&buf)
 		if err := encoder.Encode(arg); err != nil {
@@ -165,6 +177,24 @@ func Bytes2Args(argsType string, args []byte) (interface{}, error) {
 			return nil, err
 		}
 		return trace.ExtractSpan(), nil
+	case argsType == Context:
+		mps, err := mqtools.BytesToMap(args)
+		if err != nil {
+			return nil, err
+		}
+		kvs := map[ContextTransKey]interface{}{}
+		for k, v := range mps {
+			makefun, ok := contextTransValues[ContextTransKey(k)]
+			if !ok {
+				continue
+			}
+			obj := makefun()
+			if err := Marshal(obj, RpcResult(v, nil)); err != nil {
+				return nil, err
+			}
+			kvs[ContextTransKey(k)] = obj
+		}
+		return kvs, nil
 	case strings.HasPrefix(argsType, MARSHAL): // 不能直接解出对象
 		return args, nil
 	case strings.HasPrefix(argsType, PBPROTO): // 不能直接解出对象

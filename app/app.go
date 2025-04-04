@@ -294,12 +294,12 @@ func (app *DefaultApp) Call(ctx context.Context, moduleType, _func string, param
 }
 
 // Call RPC调用(无需等待结果)
-func (app *DefaultApp) CallNR(moduleType string, _func string, params ...interface{}) (err error) {
+func (app *DefaultApp) CallNR(ctx context.Context, moduleType, _func string, params ...interface{}) (err error) {
 	server, err := app.GetRouteServer(moduleType)
 	if err != nil {
 		return
 	}
-	return server.CallNR(_func, params...)
+	return server.CallNR(ctx, _func, params...)
 }
 
 // OnConfigurationLoaded 设置配置初始化完成后回调

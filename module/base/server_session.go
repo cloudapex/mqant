@@ -75,16 +75,16 @@ func (c *serverSession) Call(ctx context.Context, _func string, params ...interf
 }
 
 // 消息请求 不需要回复
-func (c *serverSession) CallNR(_func string, params ...interface{}) (err error) {
-	return c.rpc.CallNR(_func, params...)
+func (c *serverSession) CallNR(ctx context.Context, _func string, params ...interface{}) (err error) {
+	return c.rpc.CallNR(ctx, _func, params...)
 }
 
 // 消息请求 需要回复
-func (c *serverSession) CallArgs(ctx context.Context, _func string, ArgsType []string, args [][]byte) (interface{}, error) {
-	return c.rpc.CallArgs(ctx, _func, ArgsType, args)
+func (c *serverSession) CallArgs(ctx context.Context, _func string, argsType []string, args [][]byte) (interface{}, error) {
+	return c.rpc.CallArgs(ctx, _func, argsType, args)
 }
 
 // 消息请求 不需要回复
-func (c *serverSession) CallNRArgs(_func string, ArgsType []string, args [][]byte) (err error) {
-	return c.rpc.CallNRArgs(_func, ArgsType, args)
+func (c *serverSession) CallNRArgs(ctx context.Context, _func string, argsType []string, args [][]byte) (err error) {
+	return c.rpc.CallNRArgs(ctx, _func, argsType, args)
 }

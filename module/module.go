@@ -41,9 +41,9 @@ type ServerSession interface {
 	SetNode(node *registry.Node) (err error)
 
 	Call(ctx context.Context, _func string, params ...interface{}) (interface{}, error)                // 等待返回结果
-	CallArgs(ctx context.Context, _func string, ArgsType []string, args [][]byte) (interface{}, error) // 内部使用
-	CallNR(_func string, params ...interface{}) (err error)                                            // 无需等待结果
-	CallNRArgs(_func string, ArgsType []string, args [][]byte) (err error)                             // 内部使用
+	CallArgs(ctx context.Context, _func string, argsType []string, args [][]byte) (interface{}, error) // 内部使用(ctx参数必须装进args中)
+	CallNR(ctx context.Context, _func string, params ...interface{}) (err error)                       // 无需等待结果
+	CallNRArgs(ctx context.Context, _func string, argsType []string, args [][]byte) (err error)        // 内部使用(ctx参数必须装进args中)
 }
 
 // App mqant应用定义
@@ -75,7 +75,7 @@ type App interface {
 	// Call RPC调用(需要等待结果)
 	Call(ctx context.Context, moduleType, _func string, param mqrpc.ParamOption, opts ...selector.SelectOption) (interface{}, error)
 	// Call RPC调用(无需等待结果)
-	CallNR(moduleType string, _func string, params ...interface{}) error
+	CallNR(ctx context.Context, moduleType, _func string, params ...interface{}) error
 
 	// 回调
 	OnConfigurationLoaded(func(app App)) error
@@ -122,6 +122,11 @@ type RPCModule interface {
 	// 通过服务类型(moduleType)获取服务实例(可设置选择器)
 	GetServerBySelector(serviceName string, opts ...selector.SelectOption) (ServerSession, error)
 
-	Call(ctx context.Context, moduleType string, _func string, params mqrpc.ParamOption, opts ...selector.SelectOption) (interface{}, error)
-	CallNR(moduleType string, _func string, params ...interface{}) error
+	Call(ctx context.Context, moduleType, _func string, params mqrpc.ParamOption, opts ...selector.SelectOption) (interface{}, error)
+	CallNR(ctx context.Context, moduleType, _func string, params ...interface{}) error
+}
+
+// RPC传输时Context中的数据可能会需要赋值跨服务的app(为什么会有这个接口,会循环import)
+type NeedSetApp interface {
+	SetApp(App)
 }

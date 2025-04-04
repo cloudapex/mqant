@@ -19,8 +19,29 @@ import (
 	"context"
 	"reflect"
 
+	"github.com/liangdas/mqant/log"
 	rpcpb "github.com/liangdas/mqant/mqrpc/pb"
 )
+
+type ContextTransKey string
+
+var contextTransValues = map[ContextTransKey]func() Marshaler{
+	// 默认注册log.TraceSpanImp
+	ContextTransTrace: func() Marshaler { return &log.TraceSpanImp{} },
+}
+
+// 把需要通过Context进行RPC传输的KV注册进来
+func RegistContextTransValue(key ContextTransKey, makeFun func() Marshaler) {
+	contextTransValues[key] = makeFun
+}
+
+// 定义需要RPC传输TraceSpan的ContextKey
+var ContextTransTrace = ContextTransKey("ContextTransTrace")
+
+// ContextTransTrace快捷WithValue方法
+func ContextWithTrace(ctx context.Context, trace log.TraceSpan) context.Context {
+	return context.WithValue(ctx, ContextTransTrace, trace)
+}
 
 // FunctionInfo handler接口信息
 type FunctionInfo struct {
@@ -81,18 +102,18 @@ type RPCServer interface {
 	SetListener(listener RPCListener) // 设置监听器
 	SetGoroutineControl(control GoroutineControl)
 	GetExecuting() int64
-	Register(id string, f interface{})   // 注册RPC方法(单线程)
-	RegisterGO(id string, f interface{}) // 注册RPC方法(多线程)
+	Register(id string, f interface{})   // 注册RPC方法,f第一个参数必须为context.Context(单线程)
+	RegisterGO(id string, f interface{}) // 注册RPC方法,f第一个参数必须为context.Context(多线程)
 	Done() (err error)
 }
 
 // RPCClient 客户端定义
 type RPCClient interface {
 	Done() (err error)
-	CallArgs(ctx context.Context, _func string, ArgsType []string, args [][]byte) (interface{}, error)
-	CallNRArgs(_func string, ArgsType []string, args [][]byte) (err error)
 	Call(ctx context.Context, _func string, params ...interface{}) (interface{}, error)
-	CallNR(_func string, params ...interface{}) (err error)
+	CallArgs(ctx context.Context, _func string, argsType []string, args [][]byte) (interface{}, error) // ctx参数必须装进args中
+	CallNR(ctx context.Context, _func string, params ...interface{}) (err error)
+	CallNRArgs(ctx context.Context, _func string, argsType []string, args [][]byte) (err error) // ctx参数必须装进args中
 }
 
 // Marshaler is a simple encoding interface used for the broker/transport

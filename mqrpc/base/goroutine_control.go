@@ -1,4 +1,4 @@
-package defaultrpc
+package rpcbase
 
 import "github.com/liangdas/mqant/mqrpc"
 

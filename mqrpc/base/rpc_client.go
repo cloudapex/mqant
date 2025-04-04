@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package defaultrpc
+package rpcbase
 
 import (
 	"context"
@@ -51,7 +51,26 @@ func (c *RPCClient) Done() (err error) {
 	return
 }
 
-func (c *RPCClient) CallArgs(ctx context.Context, _func string, ArgsType []string, args [][]byte) (interface{}, error) {
+func (c *RPCClient) Call(ctx context.Context, _func string, params ...interface{}) (interface{}, error) {
+	var argsType []string = make([]string, len(params)+1)
+	var args [][]byte = make([][]byte, len(params)+1)
+	params = append([]interface{}{ctx}, params...)
+	for k, param := range params {
+		var err error = nil
+		argsType[k], args[k], err = mqrpc.Args2Bytes(param)
+		if err != nil {
+			return nil, fmt.Errorf("args[%d] error %s", k, err.Error())
+		}
+	}
+	start := time.Now()
+	r, err := c.CallArgs(ctx, _func, argsType, args)
+	if c.app.Configs().RpcLog {
+		span, _ := ctx.Value(mqrpc.ContextTransTrace).(log.TraceSpan)
+		log.TInfo(span, "rpc Call ServerId = %v Func = %v Elapsed = %v Result = %v ERROR = %v", c.nats_client.session.GetID(), _func, time.Since(start), r, err)
+	}
+	return r, err
+}
+func (c *RPCClient) CallArgs(ctx context.Context, _func string, argsType []string, args [][]byte) (interface{}, error) {
 	var err error
 	var result interface{}
 
@@ -62,6 +81,7 @@ func (c *RPCClient) CallArgs(ctx context.Context, _func string, ArgsType []strin
 			caller = cr
 		}
 	}
+
 	start := time.Now()
 	var correlation_id = uuid.Rand().Hex()
 	rpcInfo := &rpcpb.RPCInfo{
@@ -70,7 +90,7 @@ func (c *RPCClient) CallArgs(ctx context.Context, _func string, ArgsType []strin
 		Expired:  *proto.Int64((start.UTC().Add(c.app.Options().RPCExpired).UnixNano()) / 1000000),
 		Cid:      *proto.String(correlation_id),
 		Args:     args,
-		ArgsType: ArgsType,
+		ArgsType: argsType,
 		Caller:   *proto.String(caller),
 		Hostname: *proto.String(caller),
 	}
@@ -93,11 +113,18 @@ func (c *RPCClient) CallArgs(ctx context.Context, _func string, ArgsType []strin
 	if err != nil {
 		return nil, err
 	}
-	if ctx == nil {
-		_ctx, _cancel := context.WithTimeout(context.TODO(), c.app.Options().RPCExpired)
-		ctx = _ctx
-		defer _cancel()
+
+	// 没有设置超时的话使用默认超时
+	var cancel context.CancelFunc
+	if _, ok := ctx.Deadline(); !ok {
+		ctx, cancel = context.WithTimeout(ctx, c.app.Options().RPCExpired)
 	}
+	defer func() {
+		if cancel != nil {
+			cancel()
+		}
+	}()
+
 	select {
 	case resultInfo, ok := <-callback:
 		if !ok {
@@ -119,17 +146,34 @@ func (c *RPCClient) CallArgs(ctx context.Context, _func string, ArgsType []strin
 		//	return nil, "deadline exceeded"
 	}
 }
-func (c *RPCClient) close_callback_chan(ch chan *rpcpb.ResultInfo) {
-	defer func() {
-		if recover() != nil {
-			// close(ch) panic occur
-		}
-	}()
 
-	close(ch) // panic if ch is closed
+func (c *RPCClient) CallNR(ctx context.Context, _func string, params ...interface{}) (err error) {
+	var argsType []string = make([]string, len(params)+1)
+	var args [][]byte = make([][]byte, len(params)+1)
+	params = append([]interface{}{ctx}, params...)
+	for k, param := range params {
+		argsType[k], args[k], err = mqrpc.Args2Bytes(param)
+		if err != nil {
+			return fmt.Errorf("args[%d] error %s", k, err.Error())
+		}
+	}
+	start := time.Now()
+	err = c.CallNRArgs(ctx, _func, argsType, args)
+	if c.app.Configs().RpcLog {
+		span, _ := ctx.Value(mqrpc.ContextTransTrace).(log.TraceSpan)
+		log.TInfo(span, "rpc CallNR ServerId = %v Func = %v Elapsed = %v ERROR = %v", c.nats_client.session.GetID(), _func, time.Since(start), err)
+	}
+	return err
 }
-func (c *RPCClient) CallNRArgs(_func string, ArgsType []string, args [][]byte) (err error) {
+func (c *RPCClient) CallNRArgs(ctx context.Context, _func string, argsType []string, args [][]byte) (err error) {
 	caller, _ := os.Hostname()
+	if ctx != nil {
+		cr, ok := ctx.Value("caller").(string)
+		if ok {
+			caller = cr
+		}
+	}
+
 	var correlation_id = uuid.Rand().Hex()
 	rpcInfo := &rpcpb.RPCInfo{
 		Fn:       *proto.String(_func),
@@ -137,7 +181,7 @@ func (c *RPCClient) CallNRArgs(_func string, ArgsType []string, args [][]byte) (
 		Expired:  *proto.Int64((time.Now().UTC().Add(c.app.Options().RPCExpired).UnixNano()) / 1000000),
 		Cid:      *proto.String(correlation_id),
 		Args:     args,
-		ArgsType: ArgsType,
+		ArgsType: argsType,
 		Caller:   *proto.String(caller),
 		Hostname: *proto.String(caller),
 	}
@@ -151,57 +195,12 @@ func (c *RPCClient) CallNRArgs(_func string, ArgsType []string, args [][]byte) (
 	return c.nats_client.CallNR(callInfo)
 }
 
-/*
-*
-消息请求 需要回复
-*/
-func (c *RPCClient) Call(ctx context.Context, _func string, params ...interface{}) (interface{}, error) {
-	var ArgsType []string = make([]string, len(params))
-	var args [][]byte = make([][]byte, len(params))
-	var span log.TraceSpan = nil
-	for k, param := range params {
-		var err error = nil
-		ArgsType[k], args[k], err = mqrpc.Args2Bytes(param)
-		if err != nil {
-			return nil, fmt.Errorf("args[%d] error %s", k, err.Error())
+func (c *RPCClient) close_callback_chan(ch chan *rpcpb.ResultInfo) {
+	defer func() {
+		if recover() != nil {
+			// close(ch) panic occur
 		}
-		switch v2 := param.(type) { //多选语句switch
-		case log.TraceSpan:
-			//如果参数是这个需要拷贝一份新的再传
-			span = v2
-		}
-	}
-	start := time.Now()
-	r, err := c.CallArgs(ctx, _func, ArgsType, args)
-	if c.app.Configs().RpcLog {
-		log.TInfo(span, "rpc Call ServerId = %v Func = %v Elapsed = %v Result = %v ERROR = %v", c.nats_client.session.GetID(), _func, time.Since(start), r, err)
-	}
-	return r, err
-}
+	}()
 
-/*
-*
-消息请求 不需要回复
-*/
-func (c *RPCClient) CallNR(_func string, params ...interface{}) (err error) {
-	var ArgsType []string = make([]string, len(params))
-	var args [][]byte = make([][]byte, len(params))
-	var span log.TraceSpan = nil
-	for k, param := range params {
-		ArgsType[k], args[k], err = mqrpc.Args2Bytes(param)
-		if err != nil {
-			return fmt.Errorf("args[%d] error %s", k, err.Error())
-		}
-
-		switch v2 := param.(type) { //多选语句switch
-		case log.TraceSpan:
-			span = v2
-		}
-	}
-	start := time.Now()
-	err = c.CallNRArgs(_func, ArgsType, args)
-	if c.app.Configs().RpcLog {
-		log.TInfo(span, "rpc CallNR ServerId = %v Func = %v Elapsed = %v ERROR = %v", c.nats_client.session.GetID(), _func, time.Since(start), err)
-	}
-	return err
+	close(ch) // panic if ch is closed
 }

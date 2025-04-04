@@ -189,13 +189,13 @@ func (m *ModuleBase) GetServerBySelector(serviceName string, opts ...selector.Se
 }
 
 // Call  RPC调用(需要等待结果)
-func (m *ModuleBase) Call(ctx context.Context, moduleType string, _func string, params mqrpc.ParamOption, opts ...selector.SelectOption) (interface{}, error) {
+func (m *ModuleBase) Call(ctx context.Context, moduleType, _func string, params mqrpc.ParamOption, opts ...selector.SelectOption) (interface{}, error) {
 	return m.App.Call(ctx, moduleType, _func, params, opts...)
 }
 
 // CallNR  RPC调用(需要等待结果)
-func (m *ModuleBase) CallNR(moduleType string, _func string, params ...interface{}) (err error) {
-	return m.App.CallNR(moduleType, _func, params...)
+func (m *ModuleBase) CallNR(ctx context.Context, moduleType, _func string, params ...interface{}) (err error) {
+	return m.App.CallNR(ctx, moduleType, _func, params...)
 }
 
 // ================= RPCListener[监听事件]

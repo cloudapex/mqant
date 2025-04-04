@@ -11,9 +11,10 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package defaultrpc
+package rpcbase
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"runtime"
@@ -267,6 +268,21 @@ func (s *RPCServer) _runFunc(start time.Time, functionInfo *mqrpc.FunctionInfo, 
 			}
 
 			switch {
+			case strings.HasPrefix(v, mqrpc.Context):
+				ctx := context.Background()
+				if kvs, ok := ret.(map[mqrpc.ContextTransKey]interface{}); ok {
+					for k, v := range kvs {
+						_v := v
+						if needSet, ok := v.(module.NeedSetApp); ok {
+							needSet.SetApp(s.app)
+						}
+						if traceSpan, ok := v.(log.TraceSpan); ok {
+							_v = traceSpan.ExtractSpan()
+						}
+						ctx = context.WithValue(ctx, k, _v)
+					}
+				}
+				in[k] = reflect.ValueOf(ctx)
 			case strings.HasPrefix(v, mqrpc.MARSHAL):
 				if err := mqrpc.Marshal(elemp.Interface(), mqrpc.RpcResult(ret, nil)); err != nil {
 					s._errorCallback(start, callInfo, callInfo.RPCInfo.Cid, err.Error())

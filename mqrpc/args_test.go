@@ -42,18 +42,23 @@ func onRPCFunc2(u *user) (string, error) {
 	fmt.Println("onRPCFunc2 成功调用,请检查参数:", u)
 	return "ok", nil
 }
-func onRPCFunc3(u *user, m map[string]string) (*out, error) {
-	fmt.Println("onRPCFunc3 成功调用,请检查参数:", u, m)
+func onRPCFunc3(ctx context.Context, u *user, m map[string]string) (*out, error) {
+	fmt.Println("onRPCFunc3 成功调用,请检查参数:", ctx, u, m)
 	return nil, nil
 }
 func TestBytes(t *testing.T) {
+	var c = context.Context(nil)
+	var i interface{} = c
+	if i == nil {
+		t.Log("i = nil")
+	}
 
 	str, err := String(call(context.TODO(), "rpc", true, int32(100), int64(111), float32(1.1), 1.2222, []byte("0000"), "000"))
 	t.Log("rpc", str, err)
 	str, err = String(call(context.TODO(), "rpc2", &user{X: 1, N: 2, S: "str"}))
 	t.Log("rpc2", str, err)
 	ret := &out{}
-	err = Gob(ret, RpcResult(call(context.TODO(), "rpc3", (*user)(nil) /*&user{X: 1, N: 2, S: "str"}*/, map[string]string{"a": "b"})))
+	err = Gob(ret, RpcResult(call(context.TODO(), "rpc3", context.Background(), (*user)(nil) /*&user{X: 1, N: 2, S: "str"}*/, map[string]string{"a": "b"})))
 	t.Log("rpc3", ret, err)
 }
 
@@ -80,11 +85,11 @@ func registerFun(id string, f interface{}) {
 
 // call
 func call(ctx context.Context, _func string, params ...interface{}) (interface{}, error) {
-	var ArgsType []string = make([]string, len(params))
+	var argsType []string = make([]string, len(params))
 	var args [][]byte = make([][]byte, len(params))
 	for k, param := range params {
 		var err error = nil
-		ArgsType[k], args[k], err = Args2Bytes(param)
+		argsType[k], args[k], err = Args2Bytes(param)
 		if err != nil {
 			return nil, fmt.Errorf("args[%d] error %s", k, err.Error())
 		}
@@ -105,7 +110,7 @@ func call(ctx context.Context, _func string, params ...interface{}) (interface{}
 		Expired:  *proto.Int64((start.UTC().Add(10 * time.Second).UnixNano()) / 1000000),
 		Cid:      *proto.String(correlation_id),
 		Args:     args,
-		ArgsType: ArgsType,
+		ArgsType: argsType,
 		Caller:   *proto.String(caller),
 		Hostname: *proto.String(caller),
 	}
