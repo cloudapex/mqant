@@ -16,10 +16,12 @@
 package gate
 
 import (
+	"context"
 	"time"
 
 	"github.com/liangdas/mqant/log"
 	"github.com/liangdas/mqant/module"
+	"github.com/liangdas/mqant/mqrpc"
 	"github.com/liangdas/mqant/network"
 )
 
@@ -29,82 +31,127 @@ var RPCParamSessionType = "SESSION"
 // RPCParamProtocolMarshalType ProtocolMarshal类型
 var RPCParamProtocolMarshalType = "ProtocolMarshal"
 
-// GateHandler net代理服务处理器
+// 定义需要RPC传输session的ContextKey
+var ContextTransSession = mqrpc.ContextTransKey("ContextTransSession")
+
+// ContextTransSession快捷WithValue方法
+func ContextWithSession(ctx context.Context, session Session) context.Context {
+	return context.WithValue(ctx, ContextTransSession, session)
+}
+
+// GateHandler 代理服务处理器
 type GateHandler interface {
-	GetAgent(Sessionid string) (Agent, error)
+	GetAgent(sessionId string) (Agent, error)
 	GetAgentNum() int
-	Bind(span log.TraceSpan, Sessionid string, Userid string) (result Session, err string)                 //Bind the session with the the Userid.
-	UnBind(span log.TraceSpan, Sessionid string) (result Session, err string)                              //UnBind the session with the the Userid.
-	Set(span log.TraceSpan, Sessionid string, key string, value string) (result Session, err string)       //Set values (one or many) for the session.
-	Remove(span log.TraceSpan, Sessionid string, key string) (result interface{}, err string)              //Remove value from the session.
-	Push(span log.TraceSpan, Sessionid string, Settings map[string]string) (result Session, err string)    //推送信息给Session
-	Send(span log.TraceSpan, Sessionid string, topic string, body []byte) (result interface{}, err string) //Send message
-	SendBatch(span log.TraceSpan, Sessionids string, topic string, body []byte) (int64, string)            //批量发送
-	BroadCast(span log.TraceSpan, topic string, body []byte) (int64, string)                               //广播消息给网关所有在连客户端
-	//查询某一个userId是否连接中，这里只是查询这一个网关里面是否有userId客户端连接，如果有多个网关就需要遍历了
-	IsConnect(span log.TraceSpan, Sessionid string, Userid string) (result bool, err string)
-	Close(span log.TraceSpan, Sessionid string) (result interface{}, err string) //主动关闭连接
-	Update(span log.TraceSpan, Sessionid string) (result Session, err string)    //更新整个Session 通常是其他模块拉取最新数据
-	OnDestroy()                                                                  //退出事件,主动关闭所有的连接
+	OnDestroy() // 退出事件,当主动关闭时释放所有的连接
+
+	// 获取最新Session数据
+	OnRpcUpdLoad(ctx context.Context, sessionId string) (Session, error)
+
+	// Bind the session with the the userId.
+	OnRpcBind(ctx context.Context, sessionId string, userId string) (Session, error)
+
+	// UnBind the session with the the userId.
+	OnRpcUnBind(ctx context.Context, sessionId string) (Session, error)
+
+	// Upd settings map value for the session.
+	OnRpcPush(ctx context.Context, sessionId string, settings map[string]string) (Session, error)
+
+	// Set values (one or many) for the session.
+	OnRpcSet(ctx context.Context, sessionId string, key string, value string) (Session, error)
+
+	// Del value from the session.
+	OnRpcDel(ctx context.Context, sessionId string, key string) (Session, error)
+
+	// Send message to the session.
+	OnRpcSend(ctx context.Context, sessionId string, topic string, body []byte) (bool, error)
+
+	// 广播消息给网关所有在连客户端
+	OnRpcBroadCast(ctx context.Context, topic string, body []byte) (int64, error)
+
+	// 检查连接是否正常
+	OnRpcConnected(ctx context.Context, sessionId string) (bool, error)
+
+	// 主动关闭连接
+	OnRpcClose(ctx context.Context, sessionId string) (bool, error)
 }
 
 // Session session代表一个客户端连接,不是线程安全的
 type Session interface {
+	mqrpc.Marshaler
+
 	GetApp() module.App
+	SetApp(module.App)
+
 	GetIP() string
+	SetIP(ip string)
+
 	GetTopic() string
+	SetTopic(topic string)
+
 	GetNetwork() string
+	SetNetwork(network string)
+
 	GetUserID() string
 	GetUserIDInt64() int64
+	SetUserID(userId string)
+
 	GetSessionID() string
+	SetSessionID(sessionId string)
+
 	GetServerID() string
-	//SettingsRange 配合一个回调函数进行遍历操作，通过回调函数返回内部遍历出来的值。回调函数的返回值：需要继续迭代遍历时，返回 true；终止迭代遍历时，返回 false。
-	SettingsRange(func(k, v string) bool)
+	SetServerID(serverId string)
+
+	// 网关本地的额外数据,不会再rpc中传递
+	GetLocalUserData() interface{}
+	// 网关本地的额外数据,不会再rpc中传递
+	SetLocalUserData(data interface{})
+
+	Get(key string) (string, bool)
+	Set(key, value string) error
+	Del(key string) error
+	SetSettings(settings map[string]string)
 	// 合并两个map 并且以 agent.(Agent).GetSession().Settings 已有的优先
 	ImportSettings(map[string]string) error
-	//网关本地的额外数据,不会再rpc中传递
-	LocalUserData() interface{}
-	SetApp(module.App)
-	SetIP(ip string)
-	SetTopic(topic string)
-	SetNetwork(network string)
-	SetUserID(userid string)
-	SetSessionID(sessionid string)
-	SetServerID(serverid string)
-	SetSettings(settings map[string]string)
-	//CloneSettings
-	CloneSettings() map[string]string
-	SetLocalKV(key, value string) error
-	RemoveLocalKV(key string) error
-	//网关本地的额外数据,不会再rpc中传递
-	SetLocalUserData(data interface{}) error
-	//Serializable() ([]byte, error)
-	Update() (err string)
-	Bind(UserID string) (err string)
-	UnBind() (err string)
-	Push() (err string)
-	Set(key string, value string) (err string)
-	SetPush(key string, value string) (err string)    //设置值以后立即推送到gate网关,跟Set功能相同
-	SetBatch(settings map[string]string) (err string) //批量设置settings,跟当前已存在的settings合并,如果跟当前已存在的key重复则会被新value覆盖
-	Get(key string) (result string)
-	//Load 跟Get方法类似，但如果key不存在则 ok会返回false
-	Load(key string) (result string, ok bool)
-	Remove(key string) (err string)
-	Send(topic string, body []byte) (err string)
-	SendNR(topic string, body []byte) (err string)
-	SendBatch(Sessionids string, topic string, body []byte) (int64, string) //想该客户端的网关批量发送消息
-	//查询某一个userId是否连接中，这里只是查询这一个网关里面是否有userId客户端连接，如果有多个网关就需要遍历了
-	IsConnect(Userid string) (result bool, err string)
-	//是否是访客(未登录) ,默认判断规则为 userId==""代表访客
-	IsGuest() bool
-	//设置自动的访客判断函数,记得一定要在全局的时候设置这个值,以免部分模块因为未设置这个判断函数造成错误的判断
-	SetGuestJudger(Judger func(session Session) bool)
-	Close() (err string)
+	//SettingsRange 配合一个回调函数进行遍历操作，通过回调函数返回内部遍历出来的值。回调函数的返回值：需要继续迭代遍历时，返回 true；终止迭代遍历时，返回 false。
+	SettingsRange(func(k, v string) bool)
+
 	// 每次rpc调用都拷贝一份新的Session进行传输
 	Clone() Session
+	// 只Clone Settings
+	CloneSettings() map[string]string
 
-	CreateTrace()
-	TraceID() string
+	//是否是访客(未登录)
+	IsGuest() bool
+
+	// 日志追踪
+	UpdTraceSpan()
+	GetTraceSpan() log.TraceSpan
+
+	// Session RPC方法封装
+
+	// 更新本地Session(其他Module从Gate拉取最新数据)
+	ToUpdate() error
+	// Bind the session with the the userId.
+	ToBind(userId string) error
+	// UnBind the session with the the userId.
+	ToUnBind() error
+	// Push all Settings values for the session.
+	ToPush() error
+	// Set values (one) for the session.
+	ToSet(key string, value string) error
+	// Set values (many) for the session(合并已存在的).
+	ToSetBatch(settings map[string]string) error
+	// Remove value from the session.
+	ToDel(key string) error
+	// Send message to the session.
+	ToSend(topic string, body []byte) error
+	// Send batch message to the sessions(sessionId之间用,分割).
+	//ToSendBatch(sessionids string, topic string, body []byte) (int64, error)
+	// the session is connect status
+	ToConnected() (bool, error)
+	// close the session connect
+	ToClose() error
 }
 
 // StorageHandler Session信息持久化

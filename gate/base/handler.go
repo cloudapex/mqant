@@ -16,10 +16,10 @@
 package gatebase
 
 import (
+	"context"
 	"fmt"
 	"runtime"
 
-	"strings"
 	"sync"
 
 	"github.com/liangdas/mqant/gate"
@@ -30,10 +30,11 @@ import (
 type handler struct {
 	//gate.AgentLearner
 	//gate.GateHandler
-	lock     sync.RWMutex
+
 	gate     gate.Gate
+	lock     sync.RWMutex
 	sessions sync.Map //连接列表
-	agentNum int
+	agentNum int      // session size
 }
 
 // NewGateHandler NewGateHandler
@@ -44,57 +45,7 @@ func NewGateHandler(gate gate.Gate) *handler {
 	return handler
 }
 
-// 当连接建立  并且MQTT协议握手成功
-func (h *handler) Connect(a gate.Agent) {
-	defer func() {
-		if err := recover(); err != nil {
-			buff := make([]byte, 1024)
-			runtime.Stack(buff, false)
-			log.Error("handler Connect panic(%v)\n info:%s", err, string(buff))
-		}
-	}()
-	if a.GetSession() != nil {
-		h.sessions.Store(a.GetSession().GetSessionID(), a)
-		//已经建联成功的才计算
-		if a.ProtocolOK() {
-			h.lock.Lock()
-			h.agentNum++
-			h.lock.Unlock()
-		}
-	}
-	if h.gate.GetSessionLearner() != nil {
-		go func() {
-			h.gate.GetSessionLearner().Connect(a.GetSession())
-		}()
-	}
-}
-
-// 当连接关闭	或者客户端主动发送MQTT DisConnect命令
-func (h *handler) DisConnect(a gate.Agent) {
-	defer func() {
-		if err := recover(); err != nil {
-			buff := make([]byte, 1024)
-			runtime.Stack(buff, false)
-			log.Error("handler DisConnect panic(%v)\n info:%s", err, string(buff))
-		}
-		if a.GetSession() != nil {
-			h.sessions.Delete(a.GetSession().GetSessionID())
-			//已经建联成功的才计算
-			if a.ProtocolOK() {
-				h.lock.Lock()
-				h.agentNum--
-				h.lock.Unlock()
-			}
-		}
-	}()
-	if h.gate.GetSessionLearner() != nil {
-		if a.GetSession() != nil {
-			//没有session的就不返回了
-			h.gate.GetSessionLearner().DisConnect(a.GetSession())
-		}
-	}
-}
-
+// 当服务关闭时释放
 func (h *handler) OnDestroy() {
 	h.sessions.Range(func(key, value interface{}) bool {
 		value.(gate.Agent).Close()
@@ -111,44 +62,89 @@ func (h *handler) GetAgentNum() int {
 	return num
 }
 
-/**
- *更新整个Session 通常是其他模块拉取最新数据
- */
-func (h *handler) GetAgent(Sessionid string) (gate.Agent, error) {
-	agent, ok := h.sessions.Load(Sessionid)
+func (h *handler) GetAgent(sessionId string) (gate.Agent, error) {
+	agent, ok := h.sessions.Load(sessionId)
 	if !ok || agent == nil {
 		return nil, errors.New("No Sesssion found")
 	}
 	return agent.(gate.Agent), nil
 }
 
-/**
- *更新整个Session 通常是其他模块拉取最新数据
- */
-func (h *handler) Update(span log.TraceSpan, Sessionid string) (result gate.Session, err string) {
-	agent, ok := h.sessions.Load(Sessionid)
-	if !ok || agent == nil {
-		err = "No Sesssion found"
-		return
+// ========== AgentLearner
+
+// 当连接建立(握手成功)
+func (h *handler) Connect(a gate.Agent) {
+	defer func() {
+		if err := recover(); err != nil {
+			buff := make([]byte, 1024)
+			runtime.Stack(buff, false)
+			log.Error("handler Connect panic(%v)\n info:%s", err, string(buff))
+		}
+	}()
+	if a.GetSession() != nil {
+		h.sessions.Store(a.GetSession().GetSessionID(), a)
+		//已经建联成功的才计算
+		if a.ProtocolOK() { // 握手
+			h.lock.Lock()
+			h.agentNum++
+			h.lock.Unlock()
+		}
 	}
-	result = agent.(gate.Agent).GetSession()
-	return
+	if h.gate.GetSessionLearner() != nil {
+		go func() {
+			h.gate.GetSessionLearner().Connect(a.GetSession())
+		}()
+	}
 }
 
-/**
- *Bind the session with the the Userid.
- */
-func (h *handler) Bind(span log.TraceSpan, Sessionid string, Userid string) (result gate.Session, err string) {
-	agent, ok := h.sessions.Load(Sessionid)
-	if !ok || agent == nil {
-		err = "No Sesssion found"
-		return
+// 当连接关闭(客户端主动关闭或者异常断开)
+func (h *handler) DisConnect(a gate.Agent) {
+	defer func() {
+		if err := recover(); err != nil {
+			buff := make([]byte, 1024)
+			runtime.Stack(buff, false)
+			log.Error("handler DisConnect panic(%v)\n info:%s", err, string(buff))
+		}
+		if a.GetSession() != nil {
+			h.sessions.Delete(a.GetSession().GetSessionID())
+			//已经建联成功的才计算
+			if a.ProtocolOK() { // 握手
+				h.lock.Lock()
+				h.agentNum--
+				h.lock.Unlock()
+			}
+		}
+	}()
+	if h.gate.GetSessionLearner() != nil {
+		if a.GetSession() != nil {
+			//没有session的就不返回了
+			h.gate.GetSessionLearner().DisConnect(a.GetSession())
+		}
 	}
-	agent.(gate.Agent).GetSession().SetUserID(Userid)
+}
+
+// ========== Session RPC方法回调
+
+// 获取最新Session数据
+func (h *handler) OnRpcUpdLoad(ctx context.Context, sessionId string) (gate.Session, error) {
+	agent, ok := h.sessions.Load(sessionId)
+	if !ok || agent == nil {
+		return nil, fmt.Errorf("No Sesssion found")
+	}
+	return agent.(gate.Agent).GetSession(), nil
+}
+
+// Bind the session with the the userId.
+func (h *handler) OnRpcBind(ctx context.Context, sessionId string, userId string) (gate.Session, error) {
+	agent, ok := h.sessions.Load(sessionId)
+	if !ok || agent == nil {
+		return nil, fmt.Errorf("No Sesssion found")
+	}
+	agent.(gate.Agent).GetSession().SetUserID(userId)
 
 	if h.gate.GetStorageHandler() != nil && agent.(gate.Agent).GetSession().GetUserID() != "" {
 		//可以持久化
-		data, err := h.gate.GetStorageHandler().Query(Userid)
+		data, err := h.gate.GetStorageHandler().Query(userId)
 		if err == nil && data != nil {
 			//有已持久化的数据,可能是上一次连接保存的
 			h.gate.GetApp()
@@ -170,58 +166,30 @@ func (h *handler) Bind(span log.TraceSpan, Sessionid string, Userid string) (res
 		_ = h.gate.GetStorageHandler().Storage(agent.(gate.Agent).GetSession())
 	}
 
-	result = agent.(gate.Agent).GetSession()
-	return
+	return agent.(gate.Agent).GetSession(), nil
 }
 
-/**
- *查询某一个userId是否连接中，这里只是查询这一个网关里面是否有userId客户端连接，如果有多个网关就需要遍历了
- */
-func (h *handler) IsConnect(span log.TraceSpan, Sessionid string, Userid string) (bool, string) {
-	isconnect := false
-	found := false
-	h.sessions.Range(func(key, agent interface{}) bool {
-		if agent.(gate.Agent).GetSession().GetUserID() == Userid {
-			isconnect = !agent.(gate.Agent).IsClosed()
-			found = true
-			return false
-		}
-		return true
-	})
-	if !found {
-		return false, fmt.Sprintf("The gateway did not find the corresponding userId 【%s】", Userid)
-	}
-	return isconnect, ""
-}
-
-/**
- *UnBind the session with the the Userid.
- */
-func (h *handler) UnBind(span log.TraceSpan, Sessionid string) (result gate.Session, err string) {
-	agent, ok := h.sessions.Load(Sessionid)
+// UnBind the session with the the userId.
+func (h *handler) OnRpcUnBind(ctx context.Context, sessionId string) (gate.Session, error) {
+	agent, ok := h.sessions.Load(sessionId)
 	if !ok || agent == nil {
-		err = "No Sesssion found"
-		return
+		return nil, fmt.Errorf("No Sesssion found")
 	}
 	agent.(gate.Agent).GetSession().SetUserID("")
-	result = agent.(gate.Agent).GetSession()
-	return
+	return agent.(gate.Agent).GetSession(), nil
 }
 
-/**
- *Push the session with the the Userid.
- */
-func (h *handler) Push(span log.TraceSpan, Sessionid string, Settings map[string]string) (result gate.Session, err string) {
-	agent, ok := h.sessions.Load(Sessionid)
+// Push the session with the the userId.
+func (h *handler) OnRpcPush(ctx context.Context, sessionId string, settings map[string]string) (gate.Session, error) {
+	agent, ok := h.sessions.Load(sessionId)
 	if !ok || agent == nil {
-		err = "No Sesssion found"
-		return
+		return nil, fmt.Errorf("No Sesssion found")
 	}
-	//覆盖当前map对应的key-value
-	for key, value := range Settings {
-		_ = agent.(gate.Agent).GetSession().SetLocalKV(key, value)
+	// 覆盖当前map对应的key-value
+	for key, value := range settings {
+		_ = agent.(gate.Agent).GetSession().Set(key, value)
 	}
-	result = agent.(gate.Agent).GetSession()
+	result := agent.(gate.Agent).GetSession()
 	if h.gate.GetStorageHandler() != nil && agent.(gate.Agent).GetSession().GetUserID() != "" {
 		err := h.gate.GetStorageHandler().Storage(agent.(gate.Agent).GetSession())
 		if err != nil {
@@ -229,20 +197,18 @@ func (h *handler) Push(span log.TraceSpan, Sessionid string, Settings map[string
 		}
 	}
 
-	return
+	return result, nil
 }
 
-/**
- *Set values (one or many) for the session.
- */
-func (h *handler) Set(span log.TraceSpan, Sessionid string, key string, value string) (result gate.Session, err string) {
-	agent, ok := h.sessions.Load(Sessionid)
+// Set values (one or many) for the session.
+func (h *handler) OnRpcSet(ctx context.Context, sessionId string, key string, value string) (gate.Session, error) {
+	agent, ok := h.sessions.Load(sessionId)
 	if !ok || agent == nil {
-		err = "No Sesssion found"
-		return
+		return nil, fmt.Errorf("No Sesssion found")
 	}
-	_ = agent.(gate.Agent).GetSession().SetLocalKV(key, value)
-	result = agent.(gate.Agent).GetSession()
+
+	_ = agent.(gate.Agent).GetSession().Set(key, value)
+	result := agent.(gate.Agent).GetSession()
 
 	if h.gate.GetStorageHandler() != nil && agent.(gate.Agent).GetSession().GetUserID() != "" {
 		err := h.gate.GetStorageHandler().Storage(agent.(gate.Agent).GetSession())
@@ -251,20 +217,17 @@ func (h *handler) Set(span log.TraceSpan, Sessionid string, key string, value st
 		}
 	}
 
-	return
+	return result, nil
 }
 
-/**
- *Remove value from the session.
- */
-func (h *handler) Remove(span log.TraceSpan, Sessionid string, key string) (result interface{}, err string) {
-	agent, ok := h.sessions.Load(Sessionid)
+// Del value from the session.
+func (h *handler) OnRpcDel(ctx context.Context, sessionId string, key string) (gate.Session, error) {
+	agent, ok := h.sessions.Load(sessionId)
 	if !ok || agent == nil {
-		err = "No Sesssion found"
-		return
+		return nil, fmt.Errorf("No Sesssion found")
 	}
-	_ = agent.(gate.Agent).GetSession().RemoveLocalKV(key)
-	result = agent.(gate.Agent).GetSession()
+	_ = agent.(gate.Agent).GetSession().Del(key)
+	result := agent.(gate.Agent).GetSession()
 
 	if h.gate.GetStorageHandler() != nil && agent.(gate.Agent).GetSession().GetUserID() != "" {
 		err := h.gate.GetStorageHandler().Storage(agent.(gate.Agent).GetSession())
@@ -273,48 +236,24 @@ func (h *handler) Remove(span log.TraceSpan, Sessionid string, key string) (resu
 		}
 	}
 
-	return
+	return result, nil
 }
 
-/**
- *Send message to the session.
- */
-func (h *handler) Send(span log.TraceSpan, Sessionid string, topic string, body []byte) (result interface{}, err string) {
-	agent, ok := h.sessions.Load(Sessionid)
+// Send message to the session.
+func (h *handler) OnRpcSend(ctx context.Context, sessionId string, topic string, body []byte) (bool, error) {
+	agent, ok := h.sessions.Load(sessionId)
 	if !ok || agent == nil {
-		err = "No Sesssion found"
-		return
+		return false, fmt.Errorf("No Sesssion found")
 	}
-	e := agent.(gate.Agent).WriteMsg(topic, body)
-	if e != nil {
-		err = e.Error()
-	} else {
-		result = "success"
+	err := agent.(gate.Agent).WriteMsg(topic, body)
+	if err != nil {
+		return false, err
 	}
-	return
+	return true, nil
 }
 
-/**
- *批量发送消息,sessionid之间用,分割
- */
-func (h *handler) SendBatch(span log.TraceSpan, SessionidStr string, topic string, body []byte) (int64, string) {
-	sessionids := strings.Split(SessionidStr, ",")
-	var count int64 = 0
-	for _, sessionid := range sessionids {
-		agent, ok := h.sessions.Load(sessionid)
-		if !ok || agent == nil {
-			continue
-		}
-		e := agent.(gate.Agent).WriteMsg(topic, body)
-		if e != nil {
-			log.Warning("WriteMsg error: %v", e.Error())
-		} else {
-			count++
-		}
-	}
-	return count, ""
-}
-func (h *handler) BroadCast(span log.TraceSpan, topic string, body []byte) (int64, string) {
+// 广播消息
+func (h *handler) OnRpcBroadCast(ctx context.Context, topic string, body []byte) (int64, error) {
 	var count int64 = 0
 	h.sessions.Range(func(key, agent interface{}) bool {
 		e := agent.(gate.Agent).WriteMsg(topic, body)
@@ -325,18 +264,24 @@ func (h *handler) BroadCast(span log.TraceSpan, topic string, body []byte) (int6
 		}
 		return true
 	})
-	return count, ""
+	return count, nil
 }
 
-/**
- *主动关闭连接
- */
-func (h *handler) Close(span log.TraceSpan, Sessionid string) (result interface{}, err string) {
-	agent, ok := h.sessions.Load(Sessionid)
+// 检查连接是否正常
+func (h *handler) OnRpcConnected(ctx context.Context, sessionId string) (bool, error) {
+	agent, ok := h.sessions.Load(sessionId)
 	if !ok || agent == nil {
-		err = "No Sesssion found"
-		return
+		return false, fmt.Errorf("No Sesssion found")
+	}
+	return agent.(gate.Agent).IsClosed(), nil
+}
+
+// 主动关闭连接
+func (h *handler) OnRpcClose(ctx context.Context, sessionId string) (bool, error) {
+	agent, ok := h.sessions.Load(sessionId)
+	if !ok || agent == nil {
+		return false, fmt.Errorf("No Sesssion found")
 	}
 	agent.(gate.Agent).Close()
-	return
+	return true, nil
 }

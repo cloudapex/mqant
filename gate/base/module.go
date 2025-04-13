@@ -191,17 +191,16 @@ func (gt *ModuleGate) Init(subclass module.RPCModule, app module.App, settings *
 	gt.agentLearner = handler
 	gt.createAgent = gt.defaultAgentCreater
 
-	gt.GetServer().RegisterGO("Update", gt.handler.Update)
-	gt.GetServer().RegisterGO("Bind", gt.handler.Bind)
-	gt.GetServer().RegisterGO("UnBind", gt.handler.UnBind)
-	gt.GetServer().RegisterGO("Push", gt.handler.Push)
-	gt.GetServer().RegisterGO("Set", gt.handler.Set)
-	gt.GetServer().RegisterGO("Remove", gt.handler.Remove)
-	gt.GetServer().RegisterGO("Send", gt.handler.Send)
-	gt.GetServer().RegisterGO("SendBatch", gt.handler.SendBatch)
-	gt.GetServer().RegisterGO("BroadCast", gt.handler.BroadCast)
-	gt.GetServer().RegisterGO("IsConnect", gt.handler.IsConnect)
-	gt.GetServer().RegisterGO("Close", gt.handler.Close)
+	gt.GetServer().RegisterGO("UpdLoad", gt.handler.OnRpcUpdLoad)
+	gt.GetServer().RegisterGO("Bind", gt.handler.OnRpcBind)
+	gt.GetServer().RegisterGO("UnBind", gt.handler.OnRpcUnBind)
+	gt.GetServer().RegisterGO("Push", gt.handler.OnRpcPush)
+	gt.GetServer().RegisterGO("Set", gt.handler.OnRpcSet)
+	gt.GetServer().RegisterGO("Del", gt.handler.OnRpcDel)
+	gt.GetServer().RegisterGO("Send", gt.handler.OnRpcSend)
+	gt.GetServer().RegisterGO("BroadCast", gt.handler.OnRpcBroadCast)
+	gt.GetServer().RegisterGO("Connected", gt.handler.OnRpcConnected)
+	gt.GetServer().RegisterGO("Close", gt.handler.OnRpcClose)
 }
 func (gt *ModuleGate) OnDestroy() {
 	gt.ModuleBase.OnDestroy() //这是必须的

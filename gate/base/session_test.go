@@ -60,12 +60,12 @@ func TestSessionagent_Serializable(t *testing.T) {
 		for j := 0; j < 1000000; j++ {
 			_session := session.Clone()
 			//session.Serializable()
-			session.SetLocalKV("ff", "sss")
+			session.Set("ff", "sss")
 			session.ImportSettings(settings)
 			_session.Set("TestTopic", fmt.Sprintf("set %v", j))
 			_session.SetTopic("ttt")
 			//_session.Serializable()
-			a, ok := session.Load("a")
+			a, ok := session.Get("a")
 			if a != "a" || ok != true {
 				t.Fatalf("Load error: %v", err)
 			}
@@ -85,7 +85,7 @@ func TestSessionagent_Serializable(t *testing.T) {
 		for j := 0; j < 1000000; j++ {
 			session.Clone()
 			//session.Serializable()
-			session.SetLocalKV("ff", "sss")
+			session.Set("ff", "sss")
 			session.ImportSettings(settings)
 			session.SetTopic("ttt")
 			//fmt.Println("Serializable", b)
