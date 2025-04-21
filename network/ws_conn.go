@@ -18,11 +18,12 @@ package network
 import (
 	"io"
 	"net"
+	"net/http"
 	"sync"
 	"time"
 
+	"github.com/gorilla/websocket"
 	iptool "github.com/liangdas/mqant/mqtools/ip"
-	"golang.org/x/net/websocket"
 )
 
 // Addr is an implementation of net.Addr for WebSocket.
@@ -39,13 +40,15 @@ type WSConn struct {
 	io.Reader //Read(p []byte) (n int, err error)
 	io.Writer //Write(p []byte) (n int, err error)
 	sync.Mutex
+	header    http.Header // 只保存 请求时的header
 	conn      *websocket.Conn
 	closeFlag bool
 }
 
-func newWSConn(conn *websocket.Conn) *WSConn {
+func newWSConn(conn *websocket.Conn, r *http.Request) *WSConn {
 	wsConn := new(WSConn)
 	wsConn.conn = conn
+	wsConn.header = r.Header.Clone()
 	return wsConn
 }
 
@@ -81,12 +84,19 @@ func (wsConn *WSConn) Close() error {
 
 // Write Write
 func (wsConn *WSConn) Write(p []byte) (int, error) {
-	return wsConn.conn.Write(p)
+	err := wsConn.conn.WriteMessage(websocket.BinaryMessage, p)
+	return len(p), err
 }
 
 // Read goroutine not safe
 func (wsConn *WSConn) Read(p []byte) (n int, err error) {
-	return wsConn.conn.Read(p)
+	_, message, err := wsConn.conn.ReadMessage()
+	if err != nil {
+		return 0, err
+	}
+
+	n = copy(p, message)
+	return n, nil
 }
 
 // LocalAddr 获取本地socket地址
@@ -96,7 +106,7 @@ func (wsConn *WSConn) LocalAddr() net.Addr {
 
 // RemoteAddr 获取远程socket地址
 func (wsConn *WSConn) RemoteAddr() net.Addr {
-	return &Addr{ip: iptool.RealIP(wsConn.conn.Request())}
+	return &Addr{ip: iptool.RealIP(&http.Request{Header: wsConn.header, RemoteAddr: wsConn.conn.RemoteAddr().String()})}
 }
 
 // SetDeadline A zero value for t means I/O operations will not time out.

@@ -30,15 +30,10 @@ import (
 )
 
 func init() {
-	mqrpc.RegistContextTransValue(gate.ContextTransSession, func() mqrpc.Marshaler { return &sessionAgent{} }) // todo: 这样直接裸着不行
-}
-
-type sessionAgent struct {
-	app         module.App
-	session     *SessionImp
-	lock        *sync.RWMutex
-	userdata    interface{}
-	guestJudger func(session gate.Session) bool
+	mqrpc.RegistContextTransValue(gate.ContextTransSession, func() mqrpc.Marshaler {
+		s, _ := NewSessionByMap(nil, map[string]interface{}{})
+		return s
+	})
 }
 
 // NewSession NewSession
@@ -73,6 +68,15 @@ func NewSessionByMap(app module.App, data map[string]interface{}) (gate.Session,
 	}
 	return agent, nil
 }
+
+type sessionAgent struct {
+	app         module.App
+	session     *SessionImp
+	lock        *sync.RWMutex
+	userdata    interface{}
+	guestJudger func(session gate.Session) bool
+}
+
 func (s *sessionAgent) initByPB(data []byte) error {
 	se := &SessionImp{}
 	err := proto.Unmarshal(data, se)
@@ -114,6 +118,7 @@ func (s *sessionAgent) initByMap(datas map[string]interface{}) error {
 	}
 	return nil
 }
+
 func (s *sessionAgent) GetApp() module.App {
 	return s.app
 }

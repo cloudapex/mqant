@@ -1,127 +1,140 @@
-// Copyright 2014 mqant Author. All Rights Reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-// Package network websocket服务器
 package network
 
-//
-//import (
-//	"crypto/tls"
-//	"github.com/liangdas/mqant/log"
-//	"net"
-//	"net/http"
-//	"sync"
-//	"time"
-//)
-//
-//type WSServer struct {
-//	Addr        string
-//	TLS         bool //是否支持tls
-//	CertFile    string
-//	KeyFile     string
-//	MaxConnNum  int
-//	MaxMsgLen   uint32
-//	HTTPTimeout time.Duration
-//	NewAgent    func(*WSConn) Agent
-//	ln          net.Listener
-//	handler     *WSHandler
-//}
-//
-//type WSHandler struct {
-//	maxConnNum int
-//	maxMsgLen  uint32
-//	newAgent   func(*WSConn) Agent
-//	upgrader   websocket.Upgrader
-//	mutexConns sync.Mutex
-//	wg         sync.WaitGroup
-//}
-//
-//func (handler *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-//	if r.Method != "GET" {
-//		http.Error(w, "Method not allowed", 405)
-//		return
-//	}
-//	conn, err := handler.upgrader.Upgrade(w, r, nil)
-//	if err != nil {
-//		log.Warning("upgrade error: %v", err)
-//		return
-//	}
-//	conn.SetReadLimit(int64(handler.maxMsgLen))
-//
-//	handler.wg.Add(1)
-//	defer handler.wg.Done()
-//
-//	wsConn := newWSConn(conn)
-//	agent := handler.newAgent(wsConn)
-//	agent.Run()
-//
-//	// cleanup
-//	wsConn.Close()
-//	handler.mutexConns.Lock()
-//	handler.mutexConns.Unlock()
-//	agent.OnClose()
-//}
-//
-//func (server *WSServer) Start() {
-//	ln, err := net.Listen("tcp", server.Addr)
-//	if err != nil {
-//		log.Warning("%v", err)
-//	}
-//
-//	if server.HTTPTimeout <= 0 {
-//		server.HTTPTimeout = 10 * time.Second
-//		log.Warning("invalid HTTPTimeout, reset to %v", server.HTTPTimeout)
-//	}
-//	if server.NewAgent == nil {
-//		log.Warning("NewAgent must not be nil")
-//	}
-//	if server.TLS {
-//		tlsConf := new(tls.Config)
-//		tlsConf.Certificates = make([]tls.Certificate, 1)
-//		tlsConf.Certificates[0], err = tls.LoadX509KeyPair(server.CertFile, server.KeyFile)
-//		if err == nil {
-//			ln = tls.NewListener(ln, tlsConf)
-//			log.Info("WS Listen TLS load success")
-//		} else {
-//			log.Warning("ws_server tls :%v", err)
-//		}
-//	}
-//	server.ln = ln
-//	server.handler = &WSHandler{
-//		maxConnNum: server.MaxConnNum,
-//		maxMsgLen:  server.MaxMsgLen,
-//		newAgent:   server.NewAgent,
-//		upgrader: websocket.Upgrader{
-//			HandshakeTimeout: server.HTTPTimeout,
-//			Subprotocols:     []string{"mqttv3.1"},
-//			CheckOrigin:      func(_ *http.Request) bool { return true },
-//		},
-//	}
-//
-//	httpServer := &http.Server{
-//		Addr:           server.Addr,
-//		Handler:        server.handler,
-//		ReadTimeout:    server.HTTPTimeout,
-//		WriteTimeout:   server.HTTPTimeout,
-//		MaxHeaderBytes: 1024,
-//	}
-//	log.Info("WS Listen :%s", server.Addr)
-//	go httpServer.Serve(ln)
-//}
-//
-//func (server *WSServer) Close() {
-//	server.ln.Close()
-//
-//	server.handler.wg.Wait()
-//}
+import (
+	"crypto/tls"
+	"fmt"
+	"net"
+	"net/http"
+	"sync"
+	"time"
+
+	"github.com/gorilla/websocket"
+	"github.com/liangdas/mqant/log"
+)
+
+// WSHandler websocket 处理器
+type WSHandler struct {
+	maxConnNum int
+	maxMsgLen  uint32
+	newAgent   func(*WSConn) Agent
+	mutexConns sync.Mutex
+	wg         sync.WaitGroup
+}
+
+func (handler *WSHandler) work(conn *websocket.Conn, r *http.Request) {
+	handler.wg.Add(1)
+	defer handler.wg.Done()
+
+	wsConn := newWSConn(conn, r)
+	agent := handler.newAgent(wsConn)
+	agent.Run()
+
+	// cleanup
+	wsConn.Close()
+	agent.OnClose()
+}
+
+// WSServer websocket服务器
+type WSServer struct {
+	Addr        string
+	TLS         bool //是否支持tls
+	CertFile    string
+	KeyFile     string
+	MaxConnNum  int
+	MaxMsgLen   uint32
+	HTTPTimeout time.Duration
+	NewAgent    func(*WSConn) Agent
+	ln          net.Listener
+	handler     *WSHandler
+	ShakeFunc   func(r *http.Request) error
+}
+
+// Start 开启监听websocket端口
+func (server *WSServer) Start() {
+	ln, err := net.Listen("tcp", server.Addr)
+	if err != nil {
+		log.Error("%v", err)
+		panic(fmt.Sprintf("WSServer.Start.Listen err:%v", err))
+	}
+
+	if server.HTTPTimeout <= 0 {
+		server.HTTPTimeout = 10 * time.Second
+		log.Warning("invalid HTTPTimeout, reset to %v", server.HTTPTimeout)
+	}
+	if server.NewAgent == nil {
+		log.Warning("NewAgent must not be nil")
+	}
+	if server.TLS {
+		tlsConf := new(tls.Config)
+		tlsConf.Certificates = make([]tls.Certificate, 1)
+		tlsConf.Certificates[0], err = tls.LoadX509KeyPair(server.CertFile, server.KeyFile)
+		if err == nil {
+			ln = tls.NewListener(ln, tlsConf)
+			log.Info("WS Listen TLS load success")
+		} else {
+			log.Warning("ws_server tls :%v", err)
+		}
+	}
+	server.ln = ln
+	server.handler = &WSHandler{
+		maxConnNum: server.MaxConnNum,
+		maxMsgLen:  server.MaxMsgLen,
+		newAgent:   server.NewAgent,
+	}
+
+	// upgrader connect
+	var upgrader = websocket.Upgrader{
+		ReadBufferSize:  1024 * 5,
+		WriteBufferSize: 1024 * 5,
+		// 开启跨域
+		CheckOrigin: func(r *http.Request) bool {
+			return true
+		},
+	}
+
+	httpHandler := func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		if server.ShakeFunc != nil {
+			if err := server.ShakeFunc(r); err != nil {
+				http.Error(w, "Handshake error", http.StatusBadRequest)
+				return
+			}
+		}
+
+		// 使用 websocket.Upgrader 升级为 WebSocket 连接
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("clientAcceptor 提升为 websocket 失败, %v", err), http.StatusBadRequest)
+			return
+		}
+
+		// 设置 WebSocket 配置参数
+		conn.SetReadLimit(int64(server.MaxMsgLen))
+		conn.SetWriteDeadline(time.Now().Add(server.HTTPTimeout))
+		conn.SetReadDeadline(time.Now().Add(server.HTTPTimeout))
+
+		// 处理 WebSocket 连接
+		go server.handler.work(conn, r)
+	}
+
+	httpServer := &http.Server{
+		Addr:           server.Addr,
+		Handler:        http.HandlerFunc(httpHandler),
+		ReadTimeout:    server.HTTPTimeout,
+		WriteTimeout:   server.HTTPTimeout,
+		MaxHeaderBytes: 1024,
+	}
+	log.Info("WS Listen :%s", server.Addr)
+	go httpServer.Serve(ln)
+}
+
+// Close 停止监听websocket端口
+func (server *WSServer) Close() {
+	server.ln.Close()
+
+	server.handler.wg.Wait()
+}

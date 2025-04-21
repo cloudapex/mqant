@@ -129,7 +129,7 @@ func (u *URIRoute) OnRoute(session gate.Session, topic string, msg []byte) (bool
 				return needreturn, result, nil
 			}
 
-			e := serverSession.CallNR(_func, session, bean)
+			e := serverSession.CallNR(context.TODO(), _func, session, bean)
 			if e != nil {
 				log.Warning("Gate rpc", e.Error())
 				return needreturn, nil, e

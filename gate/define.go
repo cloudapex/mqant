@@ -202,19 +202,23 @@ type SessionLearner interface {
 
 // Agent 客户端代理定义
 type Agent interface {
-	OnInit(gate Gate, conn network.Conn) error
-	WriteMsg(topic string, body []byte) error
+	Init(gate Gate, conn network.Conn) error
 	Close()
-	Run() (err error)
 	OnClose() error
-	Destroy()
-	ConnTime() time.Time
-	RevNum() int64
-	SendNum() int64
-	IsClosed() bool
-	ProtocolOK() bool
+	Destroy() // 不建议使用,优先使用Close
+
+	Run() (err error)
+
+	ConnTime() time.Time // 建立连接的时间
+	IsClosed() bool      // 连接状态
+	ProtocolOK() bool    // 连接就绪
+	RecvNum() int64      // 接收消息的数量
+	SendNum() int64      // 发送消息的数量
+	GetSession() Session // 管理的ClientSession
+
+	WriteMsg(topic string, body []byte) error
+	// OnRecover(pack *mqtt.Pack)
 	GetError() error //连接断开的错误日志
-	GetSession() Session
 }
 
 // Gate 网关代理定义
@@ -230,7 +234,4 @@ type Gate interface {
 	GetRouteHandler() RouteHandler
 	GetSendMessageHook() SendMessageHook
 	GetGuestJudger() func(session Session) bool
-
-	// NewSession(data []byte) (Session, error)
-	// NewSessionByMap(data map[string]interface{}) (Session, error)
 }

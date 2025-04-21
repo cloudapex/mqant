@@ -33,29 +33,10 @@ import (
 	"github.com/liangdas/mqant/network"
 )
 
-//type resultInfo struct {
-//	Error  string      //错误结果 如果为nil表示请求正确
-//	Result interface{} //rpc 返回结果
-//}
-
-type agent struct {
-	gate.Agent
-	module                       module.RPCModule
-	session                      gate.Session
-	conn                         network.Conn
-	r                            *bufio.Reader
-	w                            *bufio.Writer
-	gate                         gate.Gate
-	client                       *mqtt.Client
-	ch                           chan int //控制模块可同时开启的最大协程数
-	isclose                      bool
-	protocol_ok                  bool
-	lock                         sync.Mutex
-	lastStorageHeartbeatDataTime time.Duration //上一次发送存储心跳时间
-	revNum                       int64
-	sendNum                      int64
-	connTime                     time.Time
-}
+//	type resultInfo struct {
+//		Error  string      //错误结果 如果为nil表示请求正确
+//		Result interface{} //rpc 返回结果
+//	}
 
 func NewMqttAgent(module module.RPCModule) *agent {
 	a := &agent{
@@ -63,7 +44,27 @@ func NewMqttAgent(module module.RPCModule) *agent {
 	}
 	return a
 }
-func (this *agent) OnInit(gate gate.Gate, conn network.Conn) error {
+
+type agent struct {
+	gate.Agent
+	module                       module.RPCModule
+	session                      gate.Session
+	gate                         gate.Gate
+	conn                         network.Conn
+	r                            *bufio.Reader
+	w                            *bufio.Writer
+	client                       *mqtt.Client
+	ch                           chan int //控制模块可同时开启的最大协程数
+	isclose                      bool
+	protocol_ok                  bool
+	lock                         sync.Mutex
+	lastStorageHeartbeatDataTime time.Duration //上一次发送存储心跳时间
+	recvNum                      int64
+	sendNum                      int64
+	connTime                     time.Time
+}
+
+func (this *agent) Init(gate gate.Gate, conn network.Conn) error {
 	this.ch = make(chan int, gate.Options().ConcurrentTasks)
 	this.conn = conn
 	this.gate = gate
@@ -71,48 +72,35 @@ func (this *agent) OnInit(gate gate.Gate, conn network.Conn) error {
 	this.w = bufio.NewWriterSize(conn, gate.Options().BufSize)
 	this.isclose = false
 	this.protocol_ok = false
-	this.revNum = 0
+	this.recvNum = 0
 	this.sendNum = 0
 	this.lastStorageHeartbeatDataTime = time.Duration(time.Now().UnixNano())
 	return nil
 }
-func (this *agent) IsClosed() bool {
-	return this.isclose
-}
 
-func (this *agent) ProtocolOK() bool {
-	return this.protocol_ok
+func (this *agent) Close() {
+	go func() { // 关闭连接部分情况下会阻塞超时，因此放协程去处理
+		if this.conn != nil {
+			this.conn.Close()
+		}
+	}()
 }
-
-func (this *agent) GetSession() gate.Session {
-	return this.session
-}
-
-func (this *agent) Wait() error {
-	// 如果ch满了则会处于阻塞，从而达到限制最大协程的功能
-	select {
-	case this.ch <- 1:
-	//do nothing
-	default:
-		//warnning!
-		return fmt.Errorf("the work queue is full!")
-	}
+func (this *agent) OnClose() error {
+	this.isclose = true
+	this.gate.GetAgentLearner().DisConnect(this) //发送连接断开的事件
 	return nil
 }
-func (this *agent) Finish() {
-	// 完成则从ch推出数据
-	select {
-	case <-this.ch:
-	default:
+func (this *agent) Destroy() {
+	if this.conn != nil {
+		this.conn.Destroy()
 	}
 }
-
 func (this *agent) Run() (err error) {
 	defer func() {
 		if err := recover(); err != nil {
 			buff := make([]byte, 1024)
 			runtime.Stack(buff, false)
-			log.Error("conn.serve() panic(%v)\n info:%s", err, string(buff))
+			log.Error("agent.serve() panic(%v)\n info:%s", err, string(buff))
 		}
 		this.Close()
 
@@ -167,14 +155,14 @@ func (this *agent) Run() (err error) {
 	netConn, ok := this.conn.(*network.WSConn)
 	if ok {
 		//如果是websocket连接 提取 User-Agent
-		this.session.SetLocalKV("User-Agent", netConn.Conn().Request().Header.Get("User-Agent"))
+		this.session.Set("User-Agent", netConn.Conn().Request().Header.Get("User-Agent"))
 	}
 	if err != nil {
 		log.Error("gate create agent fail", err.Error())
 		return
 	}
 	this.session.SetGuestJudger(this.gate.GetGuestJudger())
-	this.session.CreateTrace() //代码跟踪
+	this.session.UpdTraceSpan() //代码跟踪
 	//回复客户端 CONNECT
 	err = mqtt.WritePack(mqtt.GetConnAckPack(0), this.w)
 	if err != nil {
@@ -188,34 +176,47 @@ func (this *agent) Run() (err error) {
 	return nil
 }
 
-func (this *agent) OnClose() error {
-	defer func() {
-		if err := recover(); err != nil {
-			buff := make([]byte, 1024)
-			runtime.Stack(buff, false)
-			log.Error("agent OnClose panic(%v)\n info:%s", err, string(buff))
-		}
-	}()
-	this.isclose = true
-	this.gate.GetAgentLearner().DisConnect(this) //发送连接断开的事件
-	return nil
-}
+// ========== 属性方法
+
+// ConnTime 建立连接的时间
+func (this *agent) ConnTime() time.Time { return this.connTime }
+
+// IsClosed 是否关闭了
+func (this *agent) IsClosed() bool { return this.isclose }
+
+// ProtocolOK 连接就绪(握手/认证...)
+func (this *agent) ProtocolOK() bool { return this.protocol_ok }
+
+// RecvNum 接收消息的数量
+func (this *agent) RecvNum() int64 { return this.recvNum }
+
+// SendNum 发送消息的数量
+func (this *agent) SendNum() int64 { return this.sendNum }
+
+// 管理的ClientSession
+func (this *agent) GetSession() gate.Session { return this.session }
+
+// ========== 消息处理
 
 func (this *agent) GetError() error {
 	return this.client.GetError()
 }
-
-func (this *agent) RevNum() int64 {
-	return this.revNum
-}
-func (this *agent) SendNum() int64 {
-	return this.sendNum
-}
-func (this *agent) ConnTime() time.Time {
-	return this.connTime
+func (this *agent) WriteMsg(topic string, body []byte) error {
+	if this.client == nil {
+		return errors.New("mqtt.Client nil")
+	}
+	this.sendNum++
+	if hook := this.gate.GetSendMessageHook(); hook != nil {
+		bb, err := hook(this.GetSession(), topic, body)
+		if err != nil {
+			return err
+		}
+		body = bb
+	}
+	return this.client.WriteMsg(topic, body)
 }
 func (this *agent) OnRecover(pack *mqtt.Pack) {
-	err := this.Wait()
+	err := this.wait()
 	if err != nil {
 		log.Error("Gate OnRecover error [%v]", err)
 		pub := pack.GetVariable().(*mqtt.Publish)
@@ -224,23 +225,17 @@ func (this *agent) OnRecover(pack *mqtt.Pack) {
 		go this.recoverworker(pack)
 	}
 }
-
-func (this *agent) toResult(a *agent, Topic string, Result interface{}, Error string) error {
-	switch v2 := Result.(type) {
-	case module.ProtocolMarshal:
-		return a.WriteMsg(Topic, v2.GetData())
+func (this *agent) wait() error {
+	// 如果ch满了则会处于阻塞，从而达到限制最大协程的功能
+	select {
+	case this.ch <- 1:
+	//do nothing
+	default:
+		//warnning!
+		return fmt.Errorf("the work queue is full!")
 	}
-	b, err := a.module.GetApp().ProtocolMarshal(a.session.TraceID(), Result, Error)
-	if err == "" {
-		if b != nil {
-			return a.WriteMsg(Topic, b.GetData())
-		}
-		return nil
-	}
-	br, _ := a.module.GetApp().ProtocolMarshal(a.session.TraceID(), nil, err)
-	return a.WriteMsg(Topic, br.GetData())
+	return nil
 }
-
 func (this *agent) recoverworker(pack *mqtt.Pack) {
 	defer func() {
 		this.lock.Lock()
@@ -254,7 +249,7 @@ func (this *agent) recoverworker(pack *mqtt.Pack) {
 				this.gate.GetStorageHandler().Heartbeat(this.GetSession())
 			}
 		}
-		this.Finish()
+		this.finish()
 		if r := recover(); r != nil {
 			buff := make([]byte, 1024)
 			runtime.Stack(buff, false)
@@ -267,7 +262,7 @@ func (this *agent) recoverworker(pack *mqtt.Pack) {
 	switch pack.GetType() {
 	case mqtt.PUBLISH:
 		this.lock.Lock()
-		this.revNum = this.revNum + 1
+		this.recvNum = this.recvNum + 1
 		this.lock.Unlock()
 		pub := pack.GetVariable().(*mqtt.Publish)
 		if this.gate.GetRouteHandler() != nil {
@@ -368,33 +363,25 @@ func (this *agent) recoverworker(pack *mqtt.Pack) {
 		//}
 	}
 }
-
-func (this *agent) WriteMsg(topic string, body []byte) error {
-	if this.client == nil {
-		return errors.New("mqtt.Client nil")
+func (this *agent) finish() {
+	// 完成则从ch推出数据
+	select {
+	case <-this.ch:
+	default:
 	}
-	this.sendNum++
-	if hook := this.gate.GetSendMessageHook(); hook != nil {
-		bb, err := hook(this.GetSession(), topic, body)
-		if err != nil {
-			return err
-		}
-		body = bb
-	}
-	return this.client.WriteMsg(topic, body)
 }
-
-func (this *agent) Close() {
-	go func() {
-		//关闭连接部分情况下会阻塞超时，因此放协程去处理
-		if this.conn != nil {
-			this.conn.Close()
-		}
-	}()
-}
-
-func (this *agent) Destroy() {
-	if this.conn != nil {
-		this.conn.Destroy()
+func (this *agent) toResult(a *agent, Topic string, Result interface{}, Error string) error {
+	switch v2 := Result.(type) {
+	case module.ProtocolMarshal:
+		return a.WriteMsg(Topic, v2.GetData())
 	}
+	b, err := a.module.GetApp().ProtocolMarshal(a.session.TraceID(), Result, Error)
+	if err == "" {
+		if b != nil {
+			return a.WriteMsg(Topic, b.GetData())
+		}
+		return nil
+	}
+	br, _ := a.module.GetApp().ProtocolMarshal(a.session.TraceID(), nil, err)
+	return a.WriteMsg(Topic, br.GetData())
 }

@@ -27,6 +27,15 @@ import (
 	"github.com/pkg/errors"
 )
 
+// NewGateHandler NewGateHandler
+func NewGateHandler(gate gate.Gate) *handler {
+	handler := &handler{
+		gate: gate,
+	}
+	return handler
+}
+
+// handler GateHandler
 type handler struct {
 	//gate.AgentLearner
 	//gate.GateHandler
@@ -35,14 +44,6 @@ type handler struct {
 	lock     sync.RWMutex
 	sessions sync.Map //连接列表
 	agentNum int      // session size
-}
-
-// NewGateHandler NewGateHandler
-func NewGateHandler(gate gate.Gate) *handler {
-	handler := &handler{
-		gate: gate,
-	}
-	return handler
 }
 
 // 当服务关闭时释放
@@ -54,6 +55,7 @@ func (h *handler) OnDestroy() {
 	})
 }
 
+// GetAgentNum
 func (h *handler) GetAgentNum() int {
 	num := 0
 	h.lock.RLock()
@@ -62,6 +64,7 @@ func (h *handler) GetAgentNum() int {
 	return num
 }
 
+// GetAgent
 func (h *handler) GetAgent(sessionId string) (gate.Agent, error) {
 	agent, ok := h.sessions.Load(sessionId)
 	if !ok || agent == nil {
@@ -252,7 +255,7 @@ func (h *handler) OnRpcSend(ctx context.Context, sessionId string, topic string,
 	return true, nil
 }
 
-// 广播消息
+// broadcast message to all session of the gate
 func (h *handler) OnRpcBroadCast(ctx context.Context, topic string, body []byte) (int64, error) {
 	var count int64 = 0
 	h.sessions.Range(func(key, agent interface{}) bool {
