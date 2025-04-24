@@ -185,7 +185,7 @@ func (gt *ModuleGate) setGateHandler(handler gate.GateHandler) error {
 	return nil
 }
 
-// GetGateHandler 设置代理接口
+// GetGateHandler 获取代理接口
 func (gt *ModuleGate) GetGateHandler() gate.GateHandler {
 	return gt.handler
 }
