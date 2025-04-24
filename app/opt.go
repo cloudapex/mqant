@@ -15,20 +15,6 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
-type resultInfo struct {
-	Trace  string
-	Error  string      //错误结果 如果为nil表示请求正确
-	Result interface{} //结果
-}
-
-type protocolMarshalImp struct {
-	data []byte
-}
-
-func (p *protocolMarshalImp) GetData() []byte {
-	return p.data
-}
-
 func newOptions(opts ...module.Option) module.Options {
 	var wdPath, confPath, Logdir, BIdir *string
 	var ProcessID *string

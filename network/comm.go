@@ -12,8 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package network 网络代理
+// Package network 网络代理器
 package network
+
+import (
+	"net"
+)
+
+// Conn 网络代理接口
+type Conn interface {
+	// Read 和 Write 方法处理的数据必须是一个完整的数据包
+	net.Conn
+
+	Destroy()
+	doDestroy()
+}
 
 // Agent 代理
 type Agent interface {

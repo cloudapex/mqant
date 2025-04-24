@@ -312,6 +312,12 @@ func (s *sessionAgent) IsGuest() bool {
 	return false
 }
 
+// 生成RPC方法需要的context
+func (s *sessionAgent) GenRPCContext() context.Context {
+	ctx := context.Background()
+	return mqrpc.ContextWithTrace(gate.ContextWithSession(ctx, s), s.GetTraceSpan())
+}
+
 // ========== TraceLog 部分
 func (s *sessionAgent) UpdTraceSpan() {
 	s.session.TraceId = mqtools.GenerateID().String()
@@ -334,7 +340,7 @@ func (s *sessionAgent) ToUpdate() error {
 	}
 	result, err := server.Call(mqrpc.ContextWithTrace(context.Background(), s.GetTraceSpan()), "UpdLoad", s.session.SessionId)
 	if err != nil {
-		return fmt.Errorf("Call Gate serverId(%d) 'Update' err:%v", s.session.ServerId, err)
+		return fmt.Errorf("Call Gate serverId(%v) 'Update' err:%v", s.session.ServerId, err)
 	}
 	if result != nil { // 重新更新当前Session
 		s.update(result.(gate.Session))
@@ -353,7 +359,7 @@ func (s *sessionAgent) ToBind(userId string) error {
 	}
 	result, err := server.Call(mqrpc.ContextWithTrace(context.Background(), s.GetTraceSpan()), "Bind", s.session.SessionId, userId)
 	if err != nil {
-		return fmt.Errorf("Call Gate serverId(%d) 'Bind' err:%v", s.session.ServerId, err)
+		return fmt.Errorf("Call Gate serverId(%v) 'Bind' err:%v", s.session.ServerId, err)
 	}
 	if result != nil { // 绑定成功,重新更新当前Session
 		s.update(result.(gate.Session))
@@ -372,7 +378,7 @@ func (s *sessionAgent) ToUnBind() error {
 	}
 	result, err := server.Call(mqrpc.ContextWithTrace(context.Background(), s.GetTraceSpan()), "UnBind", s.session.SessionId)
 	if err != nil {
-		return fmt.Errorf("Call Gate serverId(%d) 'UnBind' err:%v", s.session.ServerId, err)
+		return fmt.Errorf("Call Gate serverId(%v) 'UnBind' err:%v", s.session.ServerId, err)
 	}
 	if result != nil { // 绑定成功,重新更新当前Session
 		s.update(result.(gate.Session))
@@ -397,7 +403,7 @@ func (s *sessionAgent) ToPush() error {
 	s.lock.Unlock()
 	result, err := server.Call(mqrpc.ContextWithTrace(context.Background(), s.GetTraceSpan()), "Push", s.session.SessionId, tmp)
 	if err != nil {
-		return fmt.Errorf("Call Gate serverId(%d) 'Push' err:%v", s.session.ServerId, err)
+		return fmt.Errorf("Call Gate serverId(%v) 'Push' err:%v", s.session.ServerId, err)
 	}
 	if result != nil { // 绑定成功,重新更新当前Session
 		s.update(result.(gate.Session))
@@ -417,7 +423,7 @@ func (s *sessionAgent) ToSet(key string, value string) error {
 
 	result, err := server.Call(mqrpc.ContextWithTrace(context.Background(), s.GetTraceSpan()), "Set", s.session.SessionId, s.session.SessionId, key, value)
 	if err != nil {
-		return fmt.Errorf("Call Gate serverId(%d) 'Set' err:%v", s.session.ServerId, err)
+		return fmt.Errorf("Call Gate serverId(%v) 'Set' err:%v", s.session.ServerId, err)
 	}
 	if result != nil { // 绑定成功,重新更新当前Session
 		s.update(result.(gate.Session))
@@ -436,7 +442,7 @@ func (s *sessionAgent) ToSetBatch(settings map[string]string) error {
 	}
 	result, err := server.Call(mqrpc.ContextWithTrace(context.Background(), s.GetTraceSpan()), "Push", s.session.SessionId, settings)
 	if err != nil {
-		return fmt.Errorf("Call Gate serverId(%d) 'Push' err:%v", s.session.ServerId, err)
+		return fmt.Errorf("Call Gate serverId(%v) 'Push' err:%v", s.session.ServerId, err)
 	}
 	if result != nil { // 绑定成功,重新更新当前Session
 		s.update(result.(gate.Session))
@@ -455,7 +461,7 @@ func (s *sessionAgent) ToDel(key string) error {
 	}
 	result, err := server.Call(mqrpc.ContextWithTrace(context.Background(), s.GetTraceSpan()), "Del", s.session.SessionId, key)
 	if err != nil {
-		return fmt.Errorf("Call Gate serverId(%d) 'Remove' err:%v", s.session.ServerId, err)
+		return fmt.Errorf("Call Gate serverId(%v) 'Remove' err:%v", s.session.ServerId, err)
 	}
 	if result != nil { // 绑定成功,重新更新当前Session
 		s.update(result.(gate.Session))

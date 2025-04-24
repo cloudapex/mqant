@@ -128,7 +128,7 @@ func (gt *ModuleGate) Run(closeSig chan bool) {
 		wsServer.ShakeFunc = gt.shakeHandle
 		wsServer.NewAgent = func(conn *network.WSConn) network.Agent {
 			agent := gt.createAgent()
-			agent.Init(gt, conn)
+			agent.Init(agent, gt, conn)
 			return agent
 		}
 	}
@@ -142,7 +142,7 @@ func (gt *ModuleGate) Run(closeSig chan bool) {
 		tcpServer.KeyFile = gt.opts.KeyFile
 		tcpServer.NewAgent = func(conn *network.TCPConn) network.Agent {
 			agent := gt.createAgent()
-			agent.Init(gt, conn)
+			agent.Init(agent, gt, conn)
 			return agent
 		}
 	}
@@ -173,8 +173,10 @@ func (gt *ModuleGate) SetAgentCreater(cfunc func() gate.Agent) error {
 
 // 默认的创建客户端Agent的方法
 func (gt *ModuleGate) defaultAgentCreater() gate.Agent {
-	a := NewMqttAgent(gt.GetSubclass())
-	return a
+	if gt.opts.WsAddr != "" {
+		return NewWSAgent()
+	}
+	return NewTCPAgent() // gt.opts.TCPAddr != ""
 }
 
 // SetGateHandler 设置代理接口

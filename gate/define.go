@@ -31,12 +31,26 @@ var RPCParamSessionType = "SESSION"
 // RPCParamProtocolMarshalType ProtocolMarshal类型
 var RPCParamProtocolMarshalType = "ProtocolMarshal"
 
+const (
+	// RPC_CLIENT_MSG RPC处理来自客户端的消息
+	RPC_CLIENT_MSG string = "RPC_CLIENT_MSG"
+
+	PACK_TOTAL_LEN_SIZE  = 2 // 存放总pack的长度值
+	PACK_MSG_ID_LEN_SIZE = 2 // 存放msgId的长度值
+)
+
 // 定义需要RPC传输session的ContextKey
 var ContextTransSession = mqrpc.ContextTransKey("ContextTransSession")
 
 // ContextTransSession快捷WithValue方法
 func ContextWithSession(ctx context.Context, session Session) context.Context {
 	return context.WithValue(ctx, ContextTransSession, session)
+}
+
+// Pack 消息包
+type Pack struct {
+	Topic string
+	Body  []byte
 }
 
 // GateHandler 代理服务处理器
@@ -124,6 +138,9 @@ type Session interface {
 	//是否是访客(未登录)
 	IsGuest() bool
 
+	// 生成RPC方法需要的context
+	GenRPCContext() context.Context
+
 	// 日志追踪
 	UpdTraceSpan()
 	GetTraceSpan() log.TraceSpan
@@ -202,7 +219,7 @@ type SessionLearner interface {
 
 // Agent 客户端代理定义
 type Agent interface {
-	Init(gate Gate, conn network.Conn) error
+	Init(impl Agent, gate Gate, conn network.Conn) error
 	Close()
 	OnClose() error
 	Destroy() // 不建议使用,优先使用Close
@@ -211,13 +228,23 @@ type Agent interface {
 
 	ConnTime() time.Time // 建立连接的时间
 	IsClosed() bool      // 连接状态
-	ProtocolOK() bool    // 连接就绪
+	IsShaked() bool      // 连接就绪(有些协议会在连接成功后要先握手)
 	RecvNum() int64      // 接收消息的数量
 	SendNum() int64      // 发送消息的数量
 	GetSession() Session // 管理的ClientSession
 
-	WriteMsg(topic string, body []byte) error
-	// OnRecover(pack *mqtt.Pack)
+	// 发送数据
+	SendPack(pack *Pack) error
+
+	// 发送编码Pack后的数据
+	OnWriteEncodingPack(pack *Pack) []byte
+
+	// 读取数据并解码出Pack
+	OnReadDecodingPack() (*Pack, error)
+
+	// 自行实现如何处理收到的数据包
+	OnRecvPack(pack *Pack) error
+
 	GetError() error //连接断开的错误日志
 }
 

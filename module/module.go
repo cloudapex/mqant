@@ -81,13 +81,6 @@ type App interface {
 	OnConfigurationLoaded(func(app App)) error
 	OnModuleInited(func(app App, module Module)) error
 	OnStartup(func(app App)) error
-
-	SetProtocolMarshal(protocolMarshal func(Trace string, Result interface{}, Error string) (ProtocolMarshal, string)) error
-	/**
-	与客户端通信的协议包接口
-	*/
-	ProtocolMarshal(Trace string, Result interface{}, Error string) (ProtocolMarshal, string)
-	NewProtocolMarshal(data []byte) ProtocolMarshal
 }
 
 // Module 基本模块定义

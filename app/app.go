@@ -17,7 +17,6 @@ package app
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
@@ -323,34 +322,4 @@ func (app *DefaultApp) OnModuleInited(_func func(app module.App, module module.M
 func (app *DefaultApp) OnStartup(_func func(app module.App)) error {
 	app.startup = _func
 	return nil
-}
-
-// SetProtocolMarshal 设置RPC数据包装器
-func (app *DefaultApp) SetProtocolMarshal(protocolMarshal func(Trace string, Result interface{}, Error string) (module.ProtocolMarshal, string)) error {
-	app.protocolMarshal = protocolMarshal
-	return nil
-}
-
-// ProtocolMarshal RPC数据包装器
-func (app *DefaultApp) ProtocolMarshal(Trace string, Result interface{}, Error string) (module.ProtocolMarshal, string) {
-	if app.protocolMarshal != nil {
-		return app.protocolMarshal(Trace, Result, Error)
-	}
-	r := &resultInfo{
-		Trace:  Trace,
-		Error:  Error,
-		Result: Result,
-	}
-	b, err := json.Marshal(r)
-	if err == nil {
-		return app.NewProtocolMarshal(b), ""
-	}
-	return nil, err.Error()
-}
-
-// NewProtocolMarshal 创建RPC数据包装器
-func (app *DefaultApp) NewProtocolMarshal(data []byte) module.ProtocolMarshal {
-	return &protocolMarshalImp{
-		data: data,
-	}
 }

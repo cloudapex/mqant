@@ -157,7 +157,7 @@ func (u *URIRoute) OnRoute(session gate.Session, topic string, msg []byte) (bool
 	s.SetTopic(topic)
 	if needreturn {
 		argsType[0] = gate.RPCParamSessionType
-		b, err := s.Serializable()
+		b, err := s.Marshal()
 		if err != nil {
 			return needreturn, nil, err
 		}
@@ -171,13 +171,13 @@ func (u *URIRoute) OnRoute(session gate.Session, topic string, msg []byte) (bool
 	}
 
 	argsType[0] = gate.RPCParamSessionType
-	b, err := s.Serializable()
+	b, err := s.Marshal()
 	if err != nil {
 		return needreturn, nil, err
 	}
 	args[0] = b
 
-	e := serverSession.CallNRArgs(_func, argsType, args)
+	e := serverSession.CallNRArgs(context.TODO(), _func, argsType, args)
 	if e != nil {
 		log.Warning("Gate rpc", e.Error())
 		return needreturn, nil, e

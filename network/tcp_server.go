@@ -17,10 +17,11 @@ package network
 
 import (
 	"crypto/tls"
-	"github.com/liangdas/mqant/log"
 	"net"
 	"sync"
 	"time"
+
+	"github.com/liangdas/mqant/log"
 )
 
 // TCPServer tcp服务器
@@ -93,8 +94,8 @@ func (server *TCPServer) run() {
 		tempDelay = 0
 		tcpConn := newTCPConn(conn)
 		agent := server.NewAgent(tcpConn)
+		server.wgConns.Add(1)
 		go func() {
-			server.wgConns.Add(1)
 			agent.Run()
 
 			// cleanup

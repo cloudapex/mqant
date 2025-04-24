@@ -29,6 +29,7 @@ type Options struct {
 	ConcurrentTasks int // 单个连接允许的同时并发协程数,控制流量(20)
 	BufSize         int // 连接数据缓存大小(2048)
 	MaxPackSize     int // 单个协议包数据最大值(65535)
+	SendPackBuffNum int // 发送消息的缓冲队列(100)
 	TLS             bool
 	TCPAddr         string
 	WsAddr          string
@@ -47,6 +48,7 @@ func NewOptions(opts ...Option) Options {
 		ConcurrentTasks: 20,
 		BufSize:         2048,
 		MaxPackSize:     65535,
+		SendPackBuffNum: 100,
 		Heartbeat:       time.Minute,
 		OverTime:        time.Second * 10,
 		TLS:             false,
@@ -77,6 +79,13 @@ func BufSize(s int) Option {
 func MaxPackSize(s int) Option {
 	return func(o *Options) {
 		o.MaxPackSize = s
+	}
+}
+
+// SendPackBuffNum 发送消息的缓冲队列数量
+func SendPackBuffNum(n int) Option {
+	return func(o *Options) {
+		o.SendPackBuffNum = n
 	}
 }
 

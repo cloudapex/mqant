@@ -87,7 +87,7 @@ func (h *handler) Connect(a gate.Agent) {
 	if a.GetSession() != nil {
 		h.sessions.Store(a.GetSession().GetSessionID(), a)
 		//已经建联成功的才计算
-		if a.ProtocolOK() { // 握手
+		if a.IsShaked() { // 握手
 			h.lock.Lock()
 			h.agentNum++
 			h.lock.Unlock()
@@ -111,7 +111,7 @@ func (h *handler) DisConnect(a gate.Agent) {
 		if a.GetSession() != nil {
 			h.sessions.Delete(a.GetSession().GetSessionID())
 			//已经建联成功的才计算
-			if a.ProtocolOK() { // 握手
+			if a.IsShaked() { // 握手
 				h.lock.Lock()
 				h.agentNum--
 				h.lock.Unlock()
@@ -248,7 +248,8 @@ func (h *handler) OnRpcSend(ctx context.Context, sessionId string, topic string,
 	if !ok || agent == nil {
 		return false, fmt.Errorf("No Sesssion found")
 	}
-	err := agent.(gate.Agent).WriteMsg(topic, body)
+	// 组装一个pack{topic,data}
+	err := agent.(gate.Agent).SendPack(&gate.Pack{Topic: topic, Body: body})
 	if err != nil {
 		return false, err
 	}
@@ -259,7 +260,7 @@ func (h *handler) OnRpcSend(ctx context.Context, sessionId string, topic string,
 func (h *handler) OnRpcBroadCast(ctx context.Context, topic string, body []byte) (int64, error) {
 	var count int64 = 0
 	h.sessions.Range(func(key, agent interface{}) bool {
-		e := agent.(gate.Agent).WriteMsg(topic, body)
+		e := agent.(gate.Agent).SendPack(&gate.Pack{Topic: topic, Body: body})
 		if e != nil {
 			log.Warning("WriteMsg error:", e.Error())
 		} else {
