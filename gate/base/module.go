@@ -32,7 +32,7 @@ type ModuleGate struct {
 	opts gate.Options
 
 	handler     gate.GateHandler                // 主代理接口
-	createAgent func() gate.Agent               // 创建客户端代理接口
+	createAgent func(netTyp string) gate.Agent  // 创建客户端代理接口
 	guestJudger func(session gate.Session) bool // 是否游客
 	shakeHandle func(r *http.Request) error     // 建立连接时鉴权(ws)
 
@@ -127,7 +127,7 @@ func (gt *ModuleGate) Run(closeSig chan bool) {
 		wsServer.KeyFile = gt.opts.KeyFile
 		wsServer.ShakeFunc = gt.shakeHandle
 		wsServer.NewAgent = func(conn *network.WSConn) network.Agent {
-			agent := gt.createAgent()
+			agent := gt.createAgent("ws")
 			agent.Init(agent, gt, conn)
 			return agent
 		}
@@ -141,7 +141,7 @@ func (gt *ModuleGate) Run(closeSig chan bool) {
 		tcpServer.CertFile = gt.opts.CertFile
 		tcpServer.KeyFile = gt.opts.KeyFile
 		tcpServer.NewAgent = func(conn *network.TCPConn) network.Agent {
-			agent := gt.createAgent()
+			agent := gt.createAgent("tcp")
 			agent.Init(agent, gt, conn)
 			return agent
 		}
@@ -166,17 +166,20 @@ func (gt *ModuleGate) Run(closeSig chan bool) {
 }
 
 // 设置创建客户端Agent的函数
-func (gt *ModuleGate) SetAgentCreater(cfunc func() gate.Agent) error {
+func (gt *ModuleGate) SetAgentCreater(cfunc func(netTyp string) gate.Agent) error {
 	gt.createAgent = cfunc
 	return nil
 }
 
 // 默认的创建客户端Agent的方法
-func (gt *ModuleGate) defaultAgentCreater() gate.Agent {
-	if gt.opts.WsAddr != "" {
+func (gt *ModuleGate) defaultAgentCreater(netTyp string) gate.Agent {
+	switch netTyp {
+	case "ws":
+		return NewWSAgent()
+	case "tcp":
 		return NewWSAgent()
 	}
-	return NewTCPAgent() // gt.opts.TCPAddr != ""
+	return NewWSAgent()
 }
 
 // SetGateHandler 设置代理接口
