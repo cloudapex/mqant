@@ -17,6 +17,7 @@ package network
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"net"
 	"sync"
@@ -87,6 +88,9 @@ func (tcpConn *TCPConn) Write(b []byte) (n int, err error) {
 // Read read data
 func (tcpConn *TCPConn) Read(b []byte) (int, error) {
 	return tcpConn.conn.Read(b)
+}
+func (tcpConn *TCPConn) ReadMessage() (messageType int, p []byte, err error) {
+	return 0, nil, fmt.Errorf("not impl")
 }
 
 // LocalAddr 本地socket端口地址

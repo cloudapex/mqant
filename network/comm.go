@@ -23,6 +23,7 @@ import (
 type Conn interface {
 	// Read 和 Write 方法处理的数据必须是一个完整的数据包
 	net.Conn
+	ReadMessage() (messageType int, p []byte, err error) // 只有ws_conn有实现
 
 	Destroy()
 	doDestroy()

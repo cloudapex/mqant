@@ -98,6 +98,9 @@ func (wsConn *WSConn) Read(p []byte) (n int, err error) {
 	n = copy(p, message)
 	return n, nil
 }
+func (wsConn *WSConn) ReadMessage() (messageType int, p []byte, err error) {
+	return wsConn.conn.ReadMessage()
+}
 
 // LocalAddr 获取本地socket地址
 func (wsConn *WSConn) LocalAddr() net.Addr {

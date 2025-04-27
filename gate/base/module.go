@@ -126,6 +126,7 @@ func (gt *ModuleGate) Run(closeSig chan bool) {
 		wsServer.CertFile = gt.opts.CertFile
 		wsServer.KeyFile = gt.opts.KeyFile
 		wsServer.ShakeFunc = gt.shakeHandle
+		wsServer.MaxMsgLen = uint32(gt.opts.MaxPackSize)
 		wsServer.NewAgent = func(conn *network.WSConn) network.Agent {
 			agent := gt.createAgent("ws")
 			agent.Init(agent, gt, conn)

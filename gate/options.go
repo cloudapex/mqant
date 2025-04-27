@@ -35,8 +35,9 @@ type Options struct {
 	WsAddr          string
 	CertFile        string
 	KeyFile         string
-	Heartbeat       time.Duration // 好像不是控制客户端的
+	EncryptKey      string        // 消息包加密key
 	OverTime        time.Duration // 建立连接超时(10s)
+	HeartOverTimer  time.Duration // 心跳超时时间(60s)
 
 	Opts []server.Option // 用来控制Module属性的
 }
@@ -49,8 +50,8 @@ func NewOptions(opts ...Option) Options {
 		BufSize:         2048,
 		MaxPackSize:     65535,
 		SendPackBuffNum: 100,
-		Heartbeat:       time.Minute,
 		OverTime:        time.Second * 10,
+		HeartOverTimer:  time.Second * 60,
 		TLS:             false,
 	}
 
@@ -89,10 +90,10 @@ func SendPackBuffNum(n int) Option {
 	}
 }
 
-// Heartbeat 心跳时间
-func Heartbeat(s time.Duration) Option {
+// HeartOverTimer 心跳超时时间
+func HeartOverTimer(s time.Duration) Option {
 	return func(o *Options) {
-		o.Heartbeat = s
+		o.HeartOverTimer = s
 	}
 }
 
@@ -151,6 +152,13 @@ func CertFile(s string) Option {
 func KeyFile(s string) Option {
 	return func(o *Options) {
 		o.KeyFile = s
+	}
+}
+
+// 消息包加密Key
+func EncryptKey(s string) Option {
+	return func(o *Options) {
+		o.EncryptKey = s
 	}
 }
 

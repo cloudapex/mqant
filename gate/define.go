@@ -35,8 +35,8 @@ const (
 	// RPC_CLIENT_MSG RPC处理来自客户端的消息
 	RPC_CLIENT_MSG string = "RPC_CLIENT_MSG"
 
-	PACK_TOTAL_LEN_SIZE  = 2 // 存放总pack的长度值
-	PACK_MSG_ID_LEN_SIZE = 2 // 存放msgId的长度值
+	PACK_HEAD_TOTAL_LEN_SIZE  = 2 // 包头中这几个字节存放总pack的长度值
+	PACK_HEAD_MSG_ID_LEN_SIZE = 2 // 包头中这几个字节存放msgId的长度值
 )
 
 // 定义需要RPC传输session的ContextKey
@@ -243,7 +243,7 @@ type Agent interface {
 	OnReadDecodingPack() (*Pack, error)
 
 	// 自行实现如何处理收到的数据包
-	OnRecvPack(pack *Pack) error
+	OnHandRecvPack(pack *Pack) error
 
 	GetError() error //连接断开的错误日志
 }

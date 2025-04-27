@@ -15,6 +15,7 @@ package gatebase
 
 import (
 	"bufio"
+	"encoding/base64"
 	"encoding/binary"
 	"fmt"
 	"runtime"
@@ -25,6 +26,7 @@ import (
 	"github.com/liangdas/mqant/gate"
 	"github.com/liangdas/mqant/log"
 	"github.com/liangdas/mqant/mqtools"
+	"github.com/liangdas/mqant/mqtools/aes"
 	"github.com/liangdas/mqant/network"
 )
 
@@ -89,11 +91,7 @@ func (this *agent) Run() (err error) {
 			log.Error("agent.recvLoop() panic(%v)\n info:%s", err, string(buff))
 		}
 		this.Close()
-
 	}()
-
-	// c := mqtt.NewClient(this.module.GetApp().Configs().Mqtt, this, this.r, this.w, this.conn, conn.GetKeepAlive(), this.gate.Options().MaxPackSize)
-	// this.client = c
 
 	addr := this.conn.RemoteAddr()
 	this.session, err = NewSessionByMap(this.gate.GetApp(), map[string]interface{}{
@@ -132,23 +130,28 @@ func (this *agent) RecvNum() int64 { return this.recvNum }
 // SendNum 发送消息的数量
 func (this *agent) SendNum() int64 { return this.sendNum }
 
-// 管理的ClientSession
+// GetSession 管理的ClientSession
 func (this *agent) GetSession() gate.Session { return this.session }
 
-// 获取最后发生的错误
-func (this *agent) GetError() error {
-	return nil
-}
-
-// ========== 发送处理
-
+// ========== 处理发送
 func (this *agent) sendLoop() {
+	defer func() {
+		if err := recover(); err != nil {
+			buff := make([]byte, 1024)
+			runtime.Stack(buff, false)
+			log.Error("agent.sendLoop() panic(%v)\n info:%s", err, string(buff))
+		}
+		this.Close()
+	}()
+
 	for pack := range this.sendPackChan {
+		this.sendNum++
 		sendData := this.Impl.OnWriteEncodingPack(pack)
 		this.conn.SetWriteDeadline(time.Now().Add(30 * time.Second))
-		_, err := this.conn.Write(sendData)
-		if err != nil {
-			log.Error("sendLoop, userId:%v SessionID:%v, err:%v", this.session.GetUserID(), this.session.GetSessionID(), err)
+		if _, err := this.conn.Write(sendData); err != nil {
+			log.Error("sendLoop, userId:%v sessionId:%v topic:%v dataLen:%v, err:%v", this.session.GetUserID(), this.session.GetSessionID(), pack.Topic, len(sendData), err)
+		} else {
+			log.Debug("sendLoop, userId:%v sessionId:%v topic:%v dataLen:%v ok.", this.session.GetUserID(), this.session.GetSessionID(), pack.Topic, len(sendData))
 		}
 	}
 }
@@ -159,7 +162,6 @@ func (this *agent) SendPack(pack *gate.Pack) error {
 		return nil
 	}
 
-	this.sendNum++
 	if hook := this.gate.GetSendMessageHook(); hook != nil {
 		bb, err := hook(this.GetSession(), pack.Topic, pack.Body)
 		if err != nil {
@@ -177,19 +179,45 @@ func (this *agent) SendPack(pack *gate.Pack) error {
 
 // 处理编码Pack后的数据用于发送
 func (this *agent) OnWriteEncodingPack(pack *gate.Pack) []byte {
+	// [普通不加密]
+	// headLen := gate.PACK_HEAD_TOTAL_LEN_SIZE + gate.PACK_HEAD_MSG_ID_LEN_SIZE
+	// totalLen := headLen + idLen + len(pack.Body)
+	// sendData := make([]byte, headLen, totalLen)
+	// binary.LittleEndian.PutUint16(sendData, uint16(totalLen))                              // for PACK_HEAD_TOTAL_LEN_SIZE
+	// binary.LittleEndian.PutUint16(sendData[gate.PACK_HEAD_TOTAL_LEN_SIZE:], uint16(idLen)) // for PACK_HEAD_MSG_ID_LEN_SIZE
+	// sendData = append(sendData, []byte(pack.Topic)...)
+	// sendData = append(sendData, pack.Body...)
+	// [end]
+
 	idLen := len(pack.Topic)
-	headLen := gate.PACK_TOTAL_LEN_SIZE + gate.PACK_MSG_ID_LEN_SIZE
-	totalLen := headLen + idLen + len(pack.Body)
-	sendData := make([]byte, headLen, totalLen)
+
+	// 需要加密的数据: PACK_HEAD_MSG_ID_LEN_SIZE + msgId + msgData
+	bodyLen := gate.PACK_HEAD_MSG_ID_LEN_SIZE + idLen + len(pack.Body)
+	bodyData := make([]byte, bodyLen)
+	binary.LittleEndian.PutUint16(bodyData, uint16(idLen))
+	copy(bodyData[gate.PACK_HEAD_MSG_ID_LEN_SIZE:], []byte(pack.Topic))
+	copy(bodyData[gate.PACK_HEAD_MSG_ID_LEN_SIZE+idLen:], []byte(pack.Body))
+
+	// 处理加密: 先base加密 + 再ecb加密
+	if this.gate.Options().EncryptKey != "" {
+		b64Data := base64.StdEncoding.EncodeToString(bodyData)
+		encryptedData, err := aes.AES_ECB_Encrypt([]byte(b64Data), []byte(this.gate.Options().EncryptKey))
+		if err != nil {
+			bodyData = []byte(err.Error())
+			log.Error("AES_ECB_Encrypt err:%v", err)
+		}
+		bodyData = encryptedData
+	}
+
+	// 发送数据总长度: PACK_HEAD_TOTAL_LEN_SIZE + len(bodyData)
+	totalLen := gate.PACK_HEAD_TOTAL_LEN_SIZE + len(bodyData)
+	sendData := make([]byte, totalLen)
 	binary.LittleEndian.PutUint16(sendData, uint16(totalLen))
-	binary.LittleEndian.PutUint16(sendData[gate.PACK_TOTAL_LEN_SIZE:], uint16(idLen))
-	sendData = append(sendData, []byte(pack.Topic)...)
-	sendData = append(sendData, pack.Body...)
+	copy(sendData[gate.PACK_HEAD_TOTAL_LEN_SIZE:], bodyData)
 	return sendData
 }
 
-// ========== 接收处理
-
+// ========== 处理接收
 func (this *agent) recvLoop() error {
 	defer func() {
 		if err := recover(); err != nil {
@@ -200,27 +228,38 @@ func (this *agent) recvLoop() error {
 		this.Close()
 	}()
 
+	heartOverTime := this.gate.Options().HeartOverTimer
 	for {
+		nowTime := time.Now()
+		if heartOverTime > 0 {
+			_ = this.conn.SetReadDeadline(nowTime.Add(heartOverTime))
+		}
 		pack, err := this.Impl.OnReadDecodingPack()
 		if err != nil {
+			if heartOverTime > 0 && time.Since(nowTime) >= (heartOverTime) {
+				log.Error("recvLoop heartOverTime, userId:%v sessionId:%v", this.session.GetSessionID(), this.session.GetUserID())
+			} else {
+				log.Error("recvLoop heartOverTime, userId:%v sessionId:%v err:%s", this.session.GetSessionID(), this.session.GetUserID(), err.Error())
+			}
 			return err
 		}
-		if err := this.OnRecvPack(pack); err != nil {
+
+		if pack == nil {
+			continue
+		}
+		// todo: 把心跳业务放到这里
+		if err := this.OnHandRecvPack(pack); err != nil {
 			return err
 		}
+		log.Debug("recvLoop, userId:%v sessionId:%v topic:%v dataLen:%v ok.", this.session.GetUserID(), this.session.GetSessionID(), pack.Topic, len(pack.Body))
 	}
 }
 
 // 从连接中读取数据并解码出Pack
-func (this *agent) OnReadDecodingPack() (*gate.Pack, error) {
-	return nil, nil
-}
+func (this *agent) OnReadDecodingPack() (*gate.Pack, error) { return nil, fmt.Errorf("not impl func") }
 
 // 自行实现如何处理收到的数据包
-func (this *agent) OnRecvPack(pack *gate.Pack) error {
-	// 注释放到调用OnReadPack的地方
-	log.Info("[%v] read pack. topic:%v, data len:%v", this.session.GetSessionID(), pack.Topic, len(pack.Body))
-
+func (this *agent) OnHandRecvPack(pack *gate.Pack) error {
 	// 处理保活(默认不处理保活,留给上层处理)
 
 	// 默认是通过topic解析出路由规则
@@ -247,4 +286,9 @@ func (this *agent) OnRecvPack(pack *gate.Pack) error {
 
 	_, err = server.Call(this.session.GenRPCContext(), gate.RPC_CLIENT_MSG, msgId, pack.Body)
 	return err
+}
+
+// 获取最后发生的错误
+func (this *agent) GetError() error {
+	return nil
 }
