@@ -112,3 +112,6 @@ func (m *mockRegistry) Init(opts ...registry.Option) error {
 func (m *mockRegistry) Options() registry.Options {
 	return registry.Options{}
 }
+func (m *mockRegistry) GetKV(key string) ([]byte, error) {
+	return m.GetKV(key)
+}

@@ -17,6 +17,7 @@ type Registry interface {
 	ListServices() ([]*Service, error)
 	Watch(...WatchOption) (Watcher, error)
 	String() string
+	GetKV(key string) ([]byte, error)
 }
 
 // Option Option

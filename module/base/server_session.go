@@ -17,6 +17,7 @@ package modulebase
 
 import (
 	"context"
+	"sync"
 
 	"github.com/liangdas/mqant/module"
 	"github.com/liangdas/mqant/mqrpc"
@@ -40,6 +41,7 @@ func NewServerSession(app module.IApp, name string, node *registry.Node) (module
 }
 
 type serverSession struct {
+	mu   sync.RWMutex
 	node *registry.Node
 	name string
 	rpc  mqrpc.RPCClient
@@ -61,10 +63,14 @@ func (c *serverSession) GetApp() module.IApp {
 	return c.app
 }
 func (c *serverSession) GetNode() *registry.Node {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	return c.node
 }
 
 func (c *serverSession) SetNode(node *registry.Node) (err error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.node = node
 	return
 }

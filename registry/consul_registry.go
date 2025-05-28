@@ -350,3 +350,16 @@ func (c *consulRegistry) String() string {
 func (c *consulRegistry) Options() Options {
 	return c.opts
 }
+
+func (c *consulRegistry) GetKV(key string) ([]byte, error) {
+	value, _, err := c.Client.KV().Get(key, nil)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if value == nil {
+		return nil, errors.New(fmt.Sprintf("not find key:%s", key))
+	}
+	return value.Value, nil
+}

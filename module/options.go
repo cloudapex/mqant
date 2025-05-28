@@ -15,17 +15,19 @@ type Option func(*Options)
 
 // Options 应用级别配置
 type Options struct {
-	Nats        *nats.Conn
 	Version     string
 	Debug       bool
 	Parse       bool // 是否由框架解析启动环境变量,默认为true
 	WorkDir     string
-	ConfPath    string
+	ProcessEnv  string   // 进程分组ID(development)
+	ConfigKey   string   // for consule
+	ConsulAddr  []string // for consule
 	LogDir      string
 	BIDir       string
-	ProcessEnv  string        // 进程分组ID(development)
+	PProfAddr   string
 	KillWaitTTL time.Duration // 服务关闭超时强杀(60s)
 
+	Nats             *nats.Conn
 	Registry         registry.Registry // 注册服务发现(registry.DefaultRegistry)
 	Selector         selector.Selector // 节点选择器(在Registry基础上)(cache.NewSelector())
 	RegisterInterval time.Duration     // 服务注册发现续约频率(10s)
@@ -75,10 +77,17 @@ func WorkDir(v string) Option {
 	}
 }
 
-// Configure 配置路径
-func Configure(v string) Option {
+// Configure 配置key
+func ConfigKey(v string) Option {
 	return func(o *Options) {
-		o.ConfPath = v
+		o.ConfigKey = v
+	}
+}
+
+// Configure consule 地址
+func ConsulAddr(v ...string) Option {
+	return func(o *Options) {
+		o.ConsulAddr = append(o.ConsulAddr, v...)
 	}
 }
 

@@ -17,6 +17,7 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
@@ -32,6 +33,7 @@ import (
 	"github.com/liangdas/mqant/module/modules"
 	"github.com/liangdas/mqant/mqrpc"
 	"github.com/liangdas/mqant/registry"
+	"github.com/liangdas/mqant/registry/consul"
 	"github.com/liangdas/mqant/selector"
 	"github.com/nats-io/nats.go"
 	"github.com/pkg/errors"
@@ -51,64 +53,122 @@ type DefaultApp struct {
 
 	serverList sync.Map
 
-	defaultRoutes func(app module.IApp, Type string, hash string) module.ServerSession
-
 	//将一个RPC调用路由到新的路由上
 	serviceRoute func(app module.IApp, route string) string
 
-	//rpcserializes       map[string]mqrpc.RPCSerialize
 	configurationLoaded func(app module.IApp)                       // 应用启动配置初始化完成后回调
 	moduleInited        func(app module.IApp, module module.Module) // 每个模块初始化完成后回调
 	startup             func(app module.IApp)                       // 应用启动完成后回调
-	protocolMarshal     func(Trace string, Result interface{}, Error string) (module.ProtocolMarshal, string)
+}
+
+// 初始化 consule
+func (app *DefaultApp) initConsul() error {
+	if app.opts.Registry == nil {
+		rs := consul.NewRegistry(func(options *registry.Options) {
+			options.Addrs = app.opts.ConsulAddr
+		})
+		app.opts.Registry = rs
+		app.opts.Selector.Init(selector.Registry(rs))
+	}
+
+	if len(app.opts.ConsulAddr) > 0 {
+		log.Info("consul addr :%s", app.opts.ConsulAddr[0])
+	}
+
+	return nil
+}
+
+// 初始化 config
+func (app *DefaultApp) loadConfig() error {
+	confData, err := app.Options().Registry.GetKV(app.Options().ConfigKey)
+	if err != nil {
+		return fmt.Errorf("无法从consul获取配置:%s, err:%v", app.Options().ConfigKey, err)
+	}
+	err = json.Unmarshal(confData, &conf.Conf)
+	if err != nil {
+		return fmt.Errorf("consul配置解析失败: err:%v, confData:%s", err.Error(), string(confData))
+	}
+	return nil
+}
+
+// 初始化 nats
+func (app *DefaultApp) initNats() error {
+	if app.opts.Nats == nil {
+		nc, err := nats.Connect(fmt.Sprintf("nats://%s", conf.Conf.Nats.Addr),
+			nats.MaxReconnects(conf.Conf.Nats.MaxReconnects))
+		if err != nil {
+			return fmt.Errorf("initNats err:%v", err)
+		}
+		app.opts.Nats = nc
+	}
+	log.Info("nats addr:%s", conf.Conf.Nats.Addr)
+	return nil
 }
 
 // Run 运行应用
 func (app *DefaultApp) Run(mods ...module.Module) error {
-	conf.LoadConfig(app.opts.ConfPath) //加载配置文件
-	cof := conf.Conf                   // app.Configure(cof) //解析配置信息
+	var err error
 
-	if app.configurationLoaded != nil {
-		app.configurationLoaded(app)
+	// init consul
+	err = app.initConsul()
+	if err != nil {
+		return err
 	}
 
-	// app.AddRPCSerialize("gate", &basegate.SessionSerialize{
-	// 	App: app,
-	// })
-	// log.InitLog(app.opts.Debug, app.opts.ProcessID, app.opts.LogDir, cof.Log)
-	// log.InitBI(app.opts.Debug, app.opts.ProcessID, app.opts.BIDir, cof.BI)
+	// init config
+	err = app.loadConfig()
+	if err != nil {
+		return err
+	}
+
+	// init log
 	log.Init(log.WithDebug(app.opts.Debug),
 		log.WithProcessID(app.opts.ProcessEnv),
 		log.WithBiDir(app.opts.BIDir),
 		log.WithLogDir(app.opts.LogDir),
 		log.WithLogFileName(app.opts.LogFileName),
-		log.WithBiSetting(cof.BI),
+		log.WithBiSetting(conf.Conf.BI),
 		log.WithBIFileName(app.opts.BIFileName),
-		log.WithLogSetting(cof.Log))
+		log.WithLogSetting(conf.Conf.Log))
+
+	if app.configurationLoaded != nil { // callback
+		app.configurationLoaded(app)
+	}
+
+	// init nats
+	err = app.initNats()
+	if err != nil {
+		return err
+	}
 	log.Info("mqant %v starting...", app.opts.Version)
 
 	// 1 RegisterRunMod
 	manager := modulebase.NewModuleManager()
 	manager.RegisterRunMod(modules.TimerModule()) // 先注册时间轮模块 每一个进程都默认运行
+
 	// 2 Register
 	for i := 0; i < len(mods); i++ {
 		mods[i].OnAppConfigurationLoaded(app)
 		manager.Register(mods[i])
 	}
 	app.OnInit()
+
 	// 2 init modules
 	manager.Init(app, app.opts.ProcessEnv)
+
 	// 3 startup callback
 	if app.startup != nil {
 		app.startup(app)
 	}
 	log.Info("mqant %v started", app.opts.Version)
+
 	// close
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, os.Kill, syscall.SIGTERM)
 	sig := <-c
 	log.BiBeego().Flush()
 	log.LogBeego().Flush()
+
 	//如果一分钟都关不了则强制关闭
 	timeout := time.NewTimer(app.opts.KillWaitTTL)
 	wait := make(chan struct{})
@@ -161,6 +221,7 @@ func (app *DefaultApp) Watcher(node *registry.Node) {
 		session.(module.ServerSession).GetRPC().Done()
 		app.serverList.Delete(node.Id)
 	}
+	// todo: 监视器: go app.serverOb.NotifyDel(svrID)
 }
 
 // OnInit 初始化
@@ -224,21 +285,13 @@ func (app *DefaultApp) GetServersByType(moduleType string) []module.ServerSessio
 		return sessions
 	}
 	for _, service := range services {
-		//log.TInfo(nil,"GetServersByType3 %v %v",Type,service.Nodes)
 		for _, node := range service.Nodes {
-			session, ok := app.serverList.Load(node.Id)
-			if !ok {
-				s, err := modulebase.NewServerSession(app, moduleType, node)
-				if err != nil {
-					log.Warning("NewServerSession %v", err)
-				} else {
-					app.serverList.Store(node.Id, s)
-					sessions = append(sessions, s)
-				}
-			} else {
-				session.(module.ServerSession).SetNode(node)
-				sessions = append(sessions, session.(module.ServerSession))
+			session, err := app.getServerSessionSafe(node, moduleType)
+			if err != nil {
+				log.Warning("getServerSessionSafe %v", err)
+				continue
 			}
+			sessions = append(sessions, session.(module.ServerSession))
 		}
 	}
 	return sessions
@@ -254,17 +307,31 @@ func (app *DefaultApp) GetServerBySelector(moduleType string, opts ...selector.S
 	if err != nil {
 		return nil, err
 	}
-	session, ok := app.serverList.Load(node.Id)
-	if !ok {
-		s, err := modulebase.NewServerSession(app, moduleType, node)
-		if err != nil {
-			return nil, err
-		}
-		app.serverList.Store(node.Id, s)
-		return s, nil
+	session, err := app.getServerSessionSafe(node, moduleType)
+	if err != nil {
+		return nil, err
 	}
-	session.(module.ServerSession).SetNode(node)
 	return session.(module.ServerSession), nil
+}
+
+// getServerSessionSafe create and store serverSession safely
+func (app *DefaultApp) getServerSessionSafe(node *registry.Node, moduleType string) (module.ServerSession, error) {
+	session, ok := app.serverList.Load(node.Id)
+	if ok {
+		session.(module.ServerSession).SetNode(node)
+		return session.(module.ServerSession), nil
+	}
+	// new
+	s, err := modulebase.NewServerSession(app, moduleType, node)
+	if err != nil {
+		return nil, err
+	}
+	_session, _ := app.serverList.LoadOrStore(node.Id, s)
+	_s := _session.(module.ServerSession)
+	if s != _s { // 释放自己创建的那个
+		go s.GetRPC().Done()
+	}
+	return s, nil
 }
 
 // Call RPC调用(需要等待结果)
@@ -283,6 +350,14 @@ func (app *DefaultApp) CallNR(ctx context.Context, moduleType, _func string, par
 		return
 	}
 	return server.CallNR(ctx, _func, params...)
+}
+
+// Call RPC调用(群发,无需等待结果)
+func (app *DefaultApp) CallBroadcast(ctx context.Context, moduleName, _func string, params ...interface{}) {
+	listSvr := app.GetServersByType(moduleName)
+	for _, svr := range listSvr {
+		svr.CallNR(ctx, _func, params...)
+	}
 }
 
 // --------------- 回调(hook)

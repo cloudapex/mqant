@@ -45,10 +45,10 @@ func LoadConfig(Path string) {
 type Config struct {
 	Log      map[string]interface{}
 	BI       map[string]interface{}
-	OP       map[string]interface{} // 没用
 	RpcLog   bool
 	Module   map[string][]*ModuleSettings
 	Mqtt     Mqtt
+	Nats     Nats
 	Settings map[string]interface{}
 }
 
@@ -73,6 +73,12 @@ type Mqtt struct {
 	ReadPackLoop     int // 最大读取包队列缓存
 	ReadTimeout      int // 读取超时
 	WriteTimeout     int // 写入超时
+}
+
+// Nats nats配置
+type Nats struct {
+	Addr          string
+	MaxReconnects int
 }
 
 func readFileInto(path string) error {

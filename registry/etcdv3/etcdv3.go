@@ -307,3 +307,19 @@ func (e *etcdv3Registry) Watch(opts ...registry.WatchOption) (registry.Watcher, 
 func (e *etcdv3Registry) String() string {
 	return "etcdv3"
 }
+
+func (e *etcdv3Registry) GetKV(key string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	rsp, err := e.client.Get(ctx, key)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(rsp.Kvs) == 0 {
+		return nil, nil
+	}
+
+	return rsp.Kvs[0].Value, nil
+}

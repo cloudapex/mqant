@@ -85,6 +85,8 @@ type IApp interface {
 	Call(ctx context.Context, moduleType, _func string, param mqrpc.ParamOption, opts ...selector.SelectOption) (interface{}, error)
 	// Call RPC调用(无需等待结果)
 	CallNR(ctx context.Context, moduleType, _func string, params ...interface{}) error
+	// Call RPC调用(群发,无需等待结果)
+	CallBroadcast(ctx context.Context, moduleName, _func string, params ...interface{})
 
 	// 回调(hook)
 	OnConfigurationLoaded(func(app IApp)) error         // 设置应用启动配置初始化完成后回调
