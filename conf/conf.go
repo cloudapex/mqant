@@ -43,11 +43,10 @@ func LoadConfig(Path string) {
 
 // Config 配置结构体
 type Config struct {
-	Log      map[string]interface{}
-	BI       map[string]interface{}
+	Log      map[string]interface{} // 不用定制
+	BI       map[string]interface{} // 不用定制
 	RpcLog   bool
 	Module   map[string][]*ModuleSettings
-	Mqtt     Mqtt
 	Nats     Nats
 	Settings map[string]interface{}
 }
@@ -65,14 +64,6 @@ type ModuleSettings struct {
 	Host      string // 没啥用
 	ProcessID string
 	Settings  map[string]interface{}
-}
-
-// Mqtt mqtt协议配置
-type Mqtt struct {
-	WirteLoopChanNum int // Should > 1 	    // 最大写入包队列缓存
-	ReadPackLoop     int // 最大读取包队列缓存
-	ReadTimeout      int // 读取超时
-	WriteTimeout     int // 写入超时
 }
 
 // Nats nats配置
