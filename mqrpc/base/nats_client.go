@@ -33,14 +33,14 @@ type NatsClient struct {
 	callinfos         *mqtools.BeeMap
 	cmutex            sync.Mutex //操作callinfos的锁
 	callbackqueueName string
-	app               module.App
+	app               module.IApp
 	done              chan error
 	subs              *nats.Subscription
 	isClose           bool
 	session           module.ServerSession
 }
 
-func NewNatsClient(app module.App, session module.ServerSession) (client *NatsClient, err error) {
+func NewNatsClient(app module.IApp, session module.ServerSession) (client *NatsClient, err error) {
 	client = new(NatsClient)
 	client.session = session
 	client.app = app
@@ -107,7 +107,7 @@ func (c *NatsClient) Call(callInfo *mqrpc.CallInfo, callback chan *rpcpb.ResultI
 	if err != nil {
 		return err
 	}
-	return c.app.Transport().Publish(c.session.GetNode().Address, body)
+	return c.app.Transporter().Publish(c.session.GetNode().Address, body)
 }
 
 /*
@@ -119,7 +119,7 @@ func (c *NatsClient) CallNR(callInfo *mqrpc.CallInfo) error {
 	if err != nil {
 		return err
 	}
-	return c.app.Transport().Publish(c.session.GetNode().Address, body)
+	return c.app.Transporter().Publish(c.session.GetNode().Address, body)
 }
 
 /*
@@ -144,7 +144,7 @@ func (c *NatsClient) on_request_handle() (err error) {
 			fmt.Println(errstr)
 		}
 	}()
-	c.subs, err = c.app.Transport().SubscribeSync(c.callbackqueueName)
+	c.subs, err = c.app.Transporter().SubscribeSync(c.callbackqueueName)
 	if err != nil {
 		return err
 	}
@@ -161,7 +161,7 @@ func (c *NatsClient) on_request_handle() (err error) {
 			//log.Warning("NatsServer error with '%v'",err)
 			if !c.subs.IsValid() {
 				//订阅已关闭，需要重新订阅
-				c.subs, err = c.app.Transport().SubscribeSync(c.callbackqueueName)
+				c.subs, err = c.app.Transporter().SubscribeSync(c.callbackqueueName)
 				if err != nil {
 					log.Error("NatsClient SubscribeSync[1] error with '%v'", err)
 					continue
@@ -173,7 +173,7 @@ func (c *NatsClient) on_request_handle() (err error) {
 			log.Error("NatsClient error with '%v'", err)
 			if !c.subs.IsValid() {
 				//订阅已关闭，需要重新订阅
-				c.subs, err = c.app.Transport().SubscribeSync(c.callbackqueueName)
+				c.subs, err = c.app.Transporter().SubscribeSync(c.callbackqueueName)
 				if err != nil {
 					log.Error("NatsClient SubscribeSync[2] error with '%v'", err)
 					continue

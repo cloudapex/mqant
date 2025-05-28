@@ -37,7 +37,7 @@ func init() {
 }
 
 // NewSession NewSession
-func NewSession(app module.App, data []byte) (gate.Session, error) {
+func NewSession(app module.IApp, data []byte) (gate.Session, error) {
 	agent := &sessionAgent{
 		app:  app,
 		lock: new(sync.RWMutex),
@@ -53,7 +53,7 @@ func NewSession(app module.App, data []byte) (gate.Session, error) {
 }
 
 // NewSessionByMap NewSessionByMap
-func NewSessionByMap(app module.App, data map[string]interface{}) (gate.Session, error) {
+func NewSessionByMap(app module.IApp, data map[string]interface{}) (gate.Session, error) {
 	agent := &sessionAgent{
 		app:     app,
 		session: new(SessionImp),
@@ -70,7 +70,7 @@ func NewSessionByMap(app module.App, data map[string]interface{}) (gate.Session,
 }
 
 type sessionAgent struct {
-	app         module.App
+	app         module.IApp
 	session     *SessionImp
 	lock        *sync.RWMutex
 	userdata    interface{}
@@ -119,10 +119,10 @@ func (s *sessionAgent) initByMap(datas map[string]interface{}) error {
 	return nil
 }
 
-func (s *sessionAgent) GetApp() module.App {
+func (s *sessionAgent) GetApp() module.IApp {
 	return s.app
 }
-func (s *sessionAgent) SetApp(app module.App) {
+func (s *sessionAgent) SetApp(app module.IApp) {
 	s.app = app
 }
 func (s *sessionAgent) GetIP() string {

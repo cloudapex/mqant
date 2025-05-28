@@ -27,7 +27,7 @@ import (
 var (
 	// LenStackBuf 异常堆栈信息
 	LenStackBuf = 1024
-	// Conf 配置结构体
+	// Conf 全局配置结构体
 	Conf = Config{}
 )
 

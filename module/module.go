@@ -35,7 +35,7 @@ type ServerSession interface {
 	GetID() string
 	GetName() string
 	GetRPC() mqrpc.RPCClient
-	GetApp() App
+	GetApp() IApp
 
 	GetNode() *registry.Node
 	SetNode(node *registry.Node) (err error)
@@ -46,22 +46,31 @@ type ServerSession interface {
 	CallNRArgs(ctx context.Context, _func string, argsType []string, args [][]byte) (err error)        // 内部使用(ctx参数必须装进args中)
 }
 
-// App mqant应用定义
-type App interface {
+// IApp mqant应用定义
+type IApp interface {
 	OnInit() error
 	OnDestroy() error
 
 	Run(mods ...Module) error
-	Configs() conf.Config
-	Options() Options
-	Transport() *nats.Conn
-	Registry() registry.Registry
-	WorkDir() string
-	GetProcessID() string
 
+	// Config 获取启动配置
+	Config() conf.Config
+
+	// Options 获取应用配置
+	Options() Options
+	// Transporter 获取消息传输对象
+	Transporter() *nats.Conn
+	// Registrar 获取服务注册对象
+	Registrar() registry.Registry
+	// WorkDir 获取进程工作目录
+	WorkDir() string
+	// GetProcessEnv 获取应用进程分组ID(dev,test,...)
+	GetProcessEnv() string
+
+	// UpdateOptions 允许再次更新应用配置(before app.Run)
 	UpdateOptions(opts ...Option) error
-	SetMapRoute(fn func(app App, route string) string) error
-	GetModuleInited() func(app App, module Module)
+	// 设置服务路由器(动态转换service名称)
+	SetServiceRoute(fn func(app IApp, route string) string) error
 
 	// 获取服务实例(通过服务ID|服务类型,可设置选择器过滤)
 	GetRouteServer(service string, opts ...selector.SelectOption) (ServerSession, error) //获取经过筛选过的服务
@@ -77,23 +86,24 @@ type App interface {
 	// Call RPC调用(无需等待结果)
 	CallNR(ctx context.Context, moduleType, _func string, params ...interface{}) error
 
-	// 回调
-	OnConfigurationLoaded(func(app App)) error
-	OnModuleInited(func(app App, module Module)) error
-	OnStartup(func(app App)) error
+	// 回调(hook)
+	OnConfigurationLoaded(func(app IApp)) error         // 设置应用启动配置初始化完成后回调
+	OnModuleInited(func(app IApp, module Module)) error // 设置每个模块初始化完成后回调
+	GetModuleInited() func(app IApp, module Module)     // 获取每个模块初始化完成后回调函数
+	OnStartup(func(app IApp)) error                     // 设置应用启动完成后回调
 }
 
 // Module 基本模块定义
 type Module interface {
 	GetType() string //模块类型
 	Version() string //模块版本
-	GetApp() App
+	GetApp() IApp
 
 	Run(closeSig chan bool)
 
-	OnInit(app App, settings *conf.ModuleSettings)
+	OnInit(app IApp, settings *conf.ModuleSettings)
 	OnDestroy()
-	OnAppConfigurationLoaded(app App)            // 当App初始化时调用，这个接口不管这个模块是否在这个进程运行都会调用
+	OnAppConfigurationLoaded(app IApp)           // 当App初始化时调用，这个接口不管这个模块是否在这个进程运行都会调用
 	OnConfChanged(settings *conf.ModuleSettings) // 为以后动态服务发现做准备(目前没用)
 }
 
@@ -121,6 +131,6 @@ type RPCModule interface {
 
 // RPC传输时Context中的数据可能会需要赋值跨服务的app(为什么会有这个接口,会循环import)
 type CtxSessionSetApp interface {
-	SetApp(App)
+	SetApp(IApp)
 	GetSessionID() string
 }

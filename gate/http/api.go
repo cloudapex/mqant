@@ -15,7 +15,7 @@ import (
 // APIHandler 网关handler
 type APIHandler struct {
 	Opts Options
-	App  module.App
+	App  module.IApp
 }
 
 // API handler is the default handler which takes api.Request and returns api.Response
@@ -68,7 +68,7 @@ func (a *APIHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // NewHandler 创建网关
-func NewHandler(app module.App, opts ...Option) http.Handler {
+func NewHandler(app module.IApp, opts ...Option) http.Handler {
 	options := NewOptions(app, opts...)
 	return &APIHandler{
 		Opts: options,

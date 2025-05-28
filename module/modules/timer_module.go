@@ -1,13 +1,15 @@
-/**
+/*
+*
 一定要记得在confin.json配置这个模块的参数,否则无法使用
 */
 package modules
 
 import (
+	"time"
+
 	"github.com/liangdas/mqant/conf"
 	"github.com/liangdas/mqant/module"
-	"github.com/liangdas/mqant/module/modules/timer"
-	"time"
+	timewheel "github.com/liangdas/mqant/module/modules/timer"
 )
 
 var TimerModule = func() module.Module {
@@ -24,7 +26,7 @@ func (m *Timer) GetType() string {
 	return "Timer"
 }
 
-func (m *Timer) OnInit(app module.App, settings *conf.ModuleSettings) {
+func (m *Timer) OnInit(app module.IApp, settings *conf.ModuleSettings) {
 	timewheel.SetTimeWheel(timewheel.New(10*time.Millisecond, 36))
 	// 时间轮使用方式
 	//import "github.com/liangdas/mqant/module/modules/timer"

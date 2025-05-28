@@ -30,7 +30,7 @@ import (
 type NatsServer struct {
 	call_chan chan mqrpc.CallInfo
 	addr      string
-	app       module.App
+	app       module.IApp
 	server    *RPCServer
 	done      chan bool
 	stopeds   chan bool
@@ -55,7 +55,7 @@ func setAddrs(addrs []string) []string {
 	return cAddrs
 }
 
-func NewNatsServer(app module.App, s *RPCServer) (*NatsServer, error) {
+func NewNatsServer(app module.IApp, s *RPCServer) (*NatsServer, error) {
 	server := new(NatsServer)
 	server.server = s
 	server.done = make(chan bool)
@@ -103,7 +103,7 @@ func (s *NatsServer) Callback(callinfo *mqrpc.CallInfo) error {
 		return err
 	}
 	reply_to := callinfo.Props["reply_to"].(string)
-	return s.app.Transport().Publish(reply_to, body)
+	return s.app.Transporter().Publish(reply_to, body)
 }
 
 /*
@@ -128,7 +128,7 @@ func (s *NatsServer) on_request_handle() (err error) {
 			fmt.Println(errstr)
 		}
 	}()
-	s.subs, err = s.app.Transport().SubscribeSync(s.addr)
+	s.subs, err = s.app.Transporter().SubscribeSync(s.addr)
 	if err != nil {
 		return err
 	}
@@ -148,7 +148,7 @@ func (s *NatsServer) on_request_handle() (err error) {
 			//log.Warning("NatsServer error with '%v'",err)
 			if !s.subs.IsValid() {
 				//订阅已关闭，需要重新订阅
-				s.subs, err = s.app.Transport().SubscribeSync(s.addr)
+				s.subs, err = s.app.Transporter().SubscribeSync(s.addr)
 				if err != nil {
 					log.Error("NatsServer SubscribeSync[1] error with '%v'", err)
 					continue
@@ -159,7 +159,7 @@ func (s *NatsServer) on_request_handle() (err error) {
 			log.Warning("NatsServer error with '%v'", err)
 			if !s.subs.IsValid() {
 				//订阅已关闭，需要重新订阅
-				s.subs, err = s.app.Transport().SubscribeSync(s.addr)
+				s.subs, err = s.app.Transporter().SubscribeSync(s.addr)
 				if err != nil {
 					log.Error("NatsServer SubscribeSync[2] error with '%v'", err)
 					continue

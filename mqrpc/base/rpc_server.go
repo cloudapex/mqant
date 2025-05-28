@@ -30,7 +30,7 @@ import (
 
 type RPCServer struct {
 	module         module.Module
-	app            module.App
+	app            module.IApp
 	functions      map[string]*mqrpc.FunctionInfo
 	nats_server    *NatsServer
 	mq_chan        chan mqrpc.CallInfo //接收到请求信息的队列
@@ -41,7 +41,7 @@ type RPCServer struct {
 	executing      int64                  //正在执行的goroutine数量
 }
 
-func NewRPCServer(app module.App, module module.Module) (mqrpc.RPCServer, error) {
+func NewRPCServer(app module.IApp, module module.Module) (mqrpc.RPCServer, error) {
 	rpc_server := new(RPCServer)
 	rpc_server.app = app
 	rpc_server.module = module
@@ -386,7 +386,7 @@ func (s *RPCServer) _runFunc(start time.Time, functionInfo *mqrpc.FunctionInfo, 
 	callInfo.Result = resultInfo
 	callInfo.ExecTime = time.Since(start).Nanoseconds()
 	s.doCallback(callInfo)
-	if s.app.Configs().RpcLog {
+	if s.app.Config().RpcLog {
 		log.TInfo(nil, "rpc Exec ModuleType = %v Func = %v Elapsed = %v", s.module.GetType(), callInfo.RPCInfo.Fn, time.Since(start))
 	}
 	if s.listener != nil {

@@ -28,11 +28,11 @@ import (
 )
 
 type RPCClient struct {
-	app         module.App
+	app         module.IApp
 	nats_client *NatsClient
 }
 
-func NewRPCClient(app module.App, session module.ServerSession) (mqrpc.RPCClient, error) {
+func NewRPCClient(app module.IApp, session module.ServerSession) (mqrpc.RPCClient, error) {
 	rpc_client := new(RPCClient)
 	rpc_client.app = app
 	nats_client, err := NewNatsClient(app, session)
@@ -64,7 +64,7 @@ func (c *RPCClient) Call(ctx context.Context, _func string, params ...interface{
 	}
 	start := time.Now()
 	r, err := c.CallArgs(ctx, _func, argsType, args)
-	if c.app.Configs().RpcLog {
+	if c.app.Config().RpcLog {
 		span, _ := ctx.Value(mqrpc.ContextTransTrace).(log.TraceSpan)
 		log.TInfo(span, "rpc Call ServerId = %v Func = %v Elapsed = %v Result = %v ERROR = %v", c.nats_client.session.GetID(), _func, time.Since(start), r, err)
 	}
@@ -159,7 +159,7 @@ func (c *RPCClient) CallNR(ctx context.Context, _func string, params ...interfac
 	}
 	start := time.Now()
 	err = c.CallNRArgs(ctx, _func, argsType, args)
-	if c.app.Configs().RpcLog {
+	if c.app.Config().RpcLog {
 		span, _ := ctx.Value(mqrpc.ContextTransTrace).(log.TraceSpan)
 		log.TInfo(span, "rpc CallNR ServerId = %v Func = %v Elapsed = %v ERROR = %v", c.nats_client.session.GetID(), _func, time.Since(start), err)
 	}

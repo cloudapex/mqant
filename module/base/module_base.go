@@ -37,7 +37,7 @@ type ModuleBase struct {
 	context.Context
 	serviceStopeds chan bool
 	exit           context.CancelFunc
-	App            module.App
+	App            module.IApp
 	subclass       module.RPCModule
 	settings       *conf.ModuleSettings
 	service        service.Service
@@ -45,7 +45,7 @@ type ModuleBase struct {
 }
 
 // Init 模块初始化(在OnInit中调用)
-func (m *ModuleBase) Init(subclass module.RPCModule, app module.App, settings *conf.ModuleSettings, opt ...server.Option) {
+func (m *ModuleBase) Init(subclass module.RPCModule, app module.IApp, settings *conf.ModuleSettings, opt ...server.Option) {
 	//初始化模块
 	m.App = app
 	m.subclass = subclass
@@ -59,7 +59,7 @@ func (m *ModuleBase) Init(subclass module.RPCModule, app module.App, settings *c
 		o(&opts)
 	}
 	if opts.Registry == nil {
-		opt = append(opt, server.Registry(app.Registry()))
+		opt = append(opt, server.Registry(app.Registrar()))
 	}
 
 	if opts.RegisterInterval == 0 {
@@ -114,7 +114,7 @@ func (m *ModuleBase) Init(subclass module.RPCModule, app module.App, settings *c
 }
 
 // GetApp module.App
-func (m *ModuleBase) GetApp() module.App {
+func (m *ModuleBase) GetApp() module.IApp {
 	return m.App
 }
 
@@ -146,13 +146,13 @@ func (m *ModuleBase) GetModuleSettings() *conf.ModuleSettings {
 func (m *ModuleBase) OnConfChanged(settings *conf.ModuleSettings) {}
 
 // OnAppConfigurationLoaded 当应用配置加载完成时调用
-func (m *ModuleBase) OnAppConfigurationLoaded(app module.App) {
+func (m *ModuleBase) OnAppConfigurationLoaded(app module.IApp) {
 	m.App = app
 	//当App初始化时调用，这个接口不管这个模块是否在这个进程运行都会调用
 }
 
 // OnInit 当模块初始化时调用
-func (m *ModuleBase) OnInit(app module.App, settings *conf.ModuleSettings) {
+func (m *ModuleBase) OnInit(app module.IApp, settings *conf.ModuleSettings) {
 	panic("Subclass needs to be implemented OnInit()")
 }
 

@@ -10,10 +10,10 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
-// Option 配置项
+// Option 应用级别配置项
 type Option func(*Options)
 
-// Options 应用级别配置项
+// Options 应用级别配置
 type Options struct {
 	Nats        *nats.Conn
 	Version     string
@@ -23,7 +23,7 @@ type Options struct {
 	ConfPath    string
 	LogDir      string
 	BIDir       string
-	ProcessID   string        // 进程分组ID(development)
+	ProcessEnv  string        // 进程分组ID(development)
 	KillWaitTTL time.Duration // 服务关闭超时强杀(60s)
 
 	Registry         registry.Registry // 注册服务发现(registry.DefaultRegistry)
@@ -46,13 +46,13 @@ type Options struct {
 type FileNameHandler func(logdir, prefix, processID, suffix string) string
 
 // ClientRPCHandler 调用方RPC监控
-type ClientRPCHandler func(app App, server registry.Node, rpcinfo *rpcpb.RPCInfo, result interface{}, err error, exec_time int64)
+type ClientRPCHandler func(app IApp, server registry.Node, rpcinfo *rpcpb.RPCInfo, result interface{}, err error, exec_time int64)
 
 // ServerRPCHandler 服务方RPC监控
-type ServerRPCHandler func(app App, module Module, callInfo *mqrpc.CallInfo)
+type ServerRPCHandler func(app IApp, module Module, callInfo *mqrpc.CallInfo)
 
 // ServerRPCHandler 服务方RPC监控
-type RpcCompleteHandler func(app App, module Module, callInfo *mqrpc.CallInfo, input []interface{}, out []interface{}, execTime time.Duration)
+type RpcCompleteHandler func(app IApp, module Module, callInfo *mqrpc.CallInfo, input []interface{}, out []interface{}, execTime time.Duration)
 
 // Version 应用版本
 func Version(v string) Option {
@@ -92,7 +92,7 @@ func LogDir(v string) Option {
 // ProcessID 进程分组ID
 func ProcessID(v string) Option {
 	return func(o *Options) {
-		o.ProcessID = v
+		o.ProcessEnv = v
 	}
 }
 

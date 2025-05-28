@@ -43,7 +43,7 @@ type ModuleGate struct {
 	sendMessageHook gate.SendMessageHook // 发送消息时的钩子回调
 }
 
-func (gt *ModuleGate) Init(subclass module.RPCModule, app module.App, settings *conf.ModuleSettings, opts ...gate.Option) {
+func (gt *ModuleGate) Init(subclass module.RPCModule, app module.IApp, settings *conf.ModuleSettings, opts ...gate.Option) {
 	gt.opts = gate.NewOptions(opts...)
 	gt.ModuleBase.Init(subclass, app, settings, gt.opts.Opts...) //这是必须的
 	if gt.opts.WsAddr == "" {
@@ -104,7 +104,7 @@ func (gt *ModuleGate) GetType() string { return "Gate" }
 
 func (gt *ModuleGate) Version() string { return "1.0.0" }
 
-func (gt *ModuleGate) OnAppConfigurationLoaded(app module.App) {
+func (gt *ModuleGate) OnAppConfigurationLoaded(app module.IApp) {
 	gt.ModuleBase.OnAppConfigurationLoaded(app) //这是必须的
 	// err := app.AddRPCSerialize("gate", gt)
 	// if err != nil {

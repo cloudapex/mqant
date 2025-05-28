@@ -38,26 +38,28 @@ import (
 )
 
 // NewApp 创建app
-func NewApp(opts ...module.Option) module.App {
-	options := newOptions(opts...)
+func NewApp(opts ...module.Option) module.IApp {
 	app := new(DefaultApp)
-	app.opts = options
-	options.Selector.Init(selector.SetWatcher(app.Watcher))
+	app.opts = newOptions(opts...)
+	app.opts.Selector.Init(selector.SetWatcher(app.Watcher))
 	return app
 }
 
 // DefaultApp 默认应用
 type DefaultApp struct {
-	version       string
-	serverList    sync.Map
-	opts          module.Options
-	defaultRoutes func(app module.App, Type string, hash string) module.ServerSession
+	opts module.Options
+
+	serverList sync.Map
+
+	defaultRoutes func(app module.IApp, Type string, hash string) module.ServerSession
+
 	//将一个RPC调用路由到新的路由上
-	mapRoute func(app module.App, route string) string
+	serviceRoute func(app module.IApp, route string) string
+
 	//rpcserializes       map[string]mqrpc.RPCSerialize
-	configurationLoaded func(app module.App)
-	startup             func(app module.App)
-	moduleInited        func(app module.App, module module.Module)
+	configurationLoaded func(app module.IApp)                       // 应用启动配置初始化完成后回调
+	moduleInited        func(app module.IApp, module module.Module) // 每个模块初始化完成后回调
+	startup             func(app module.IApp)                       // 应用启动完成后回调
 	protocolMarshal     func(Trace string, Result interface{}, Error string) (module.ProtocolMarshal, string)
 }
 
@@ -76,7 +78,7 @@ func (app *DefaultApp) Run(mods ...module.Module) error {
 	// log.InitLog(app.opts.Debug, app.opts.ProcessID, app.opts.LogDir, cof.Log)
 	// log.InitBI(app.opts.Debug, app.opts.ProcessID, app.opts.BIDir, cof.BI)
 	log.Init(log.WithDebug(app.opts.Debug),
-		log.WithProcessID(app.opts.ProcessID),
+		log.WithProcessID(app.opts.ProcessEnv),
 		log.WithBiDir(app.opts.BIDir),
 		log.WithLogDir(app.opts.LogDir),
 		log.WithLogFileName(app.opts.LogFileName),
@@ -93,9 +95,9 @@ func (app *DefaultApp) Run(mods ...module.Module) error {
 		mods[i].OnAppConfigurationLoaded(app)
 		manager.Register(mods[i])
 	}
-	// 2 init modules
 	app.OnInit()
-	manager.Init(app, app.opts.ProcessID)
+	// 2 init modules
+	manager.Init(app, app.opts.ProcessEnv)
 	// 3 startup callback
 	if app.startup != nil {
 		app.startup(app)
@@ -126,40 +128,30 @@ func (app *DefaultApp) Run(mods ...module.Module) error {
 	return nil
 }
 
-// Configs 获取应用配置
-func (app *DefaultApp) Configs() conf.Config { return conf.Conf }
+// Config 获取启动配置
+func (app *DefaultApp) Config() conf.Config { return conf.Conf }
 
 // Options 获取应用配置
-func (app *DefaultApp) Options() module.Options {
-	return app.opts
-}
+func (app *DefaultApp) Options() module.Options { return app.opts }
 
-// UpdateOptions 更新应用配置(before app.Run)
+// Transporter 获取消息传输对象
+func (app *DefaultApp) Transporter() *nats.Conn { return app.opts.Nats }
+
+// Registrar 获取服务注册对象
+func (app *DefaultApp) Registrar() registry.Registry { return app.opts.Registry }
+
+// WorkDir 获取进程工作目录
+func (app *DefaultApp) WorkDir() string { return app.opts.WorkDir }
+
+// GetProcessEnv 获取应用进程分组环境ID
+func (app *DefaultApp) GetProcessEnv() string { return app.opts.ProcessEnv }
+
+// UpdateOptions 允许再次更新应用配置(before app.Run)
 func (app *DefaultApp) UpdateOptions(opts ...module.Option) error {
 	for _, o := range opts {
 		o(&app.opts)
 	}
 	return nil
-}
-
-// Transport 获取消息传输对象
-func (app *DefaultApp) Transport() *nats.Conn {
-	return app.opts.Nats
-}
-
-// Registry 获取服务注册对象
-func (app *DefaultApp) Registry() registry.Registry {
-	return app.opts.Registry
-}
-
-// GetProcessID 获取应用分组ID
-func (app *DefaultApp) GetProcessID() string {
-	return app.opts.ProcessID
-}
-
-// WorkDir 获取进程工作目录
-func (app *DefaultApp) WorkDir() string {
-	return app.opts.WorkDir
 }
 
 // Watcher 监视服务节点注销(ServerSession删除掉)
@@ -172,32 +164,25 @@ func (app *DefaultApp) Watcher(node *registry.Node) {
 }
 
 // OnInit 初始化
-func (app *DefaultApp) OnInit() error {
-
-	return nil
-}
+func (app *DefaultApp) OnInit() error { return nil }
 
 // OnDestroy 应用退出
-func (app *DefaultApp) OnDestroy() error {
+func (app *DefaultApp) OnDestroy() error { return nil }
 
-	return nil
-}
-
-// SetMapRoute 设置路由器
-func (app *DefaultApp) SetMapRoute(fn func(app module.App, route string) string) error {
-	app.mapRoute = fn
+// SetServiceRoute 设置服务路由器(动态转换service名称)
+func (app *DefaultApp) SetServiceRoute(fn func(app module.IApp, route string) string) error {
+	app.serviceRoute = fn
 	return nil
 }
 
 // GetRouteServer 获取服务实例(通过服务ID|服务类型,可设置选择器过滤)
 func (app *DefaultApp) GetRouteServer(service string, opts ...selector.SelectOption) (s module.ServerSession, err error) {
-	if app.mapRoute != nil {
-		//进行一次路由转换
-		service = app.mapRoute(app, service)
+	if app.serviceRoute != nil { // 进行一次路由转换
+		service = app.serviceRoute(app, service)
 	}
 	sl := strings.Split(service, "@")
 	if len(sl) == 2 {
-		serverID := service
+		serverID := service // sl[0] + @ + sl[1] = moduleType@moduleID
 		moduleID := sl[1]
 		if moduleID != "" {
 			return app.GetServerByID(serverID)
@@ -211,14 +196,14 @@ func (app *DefaultApp) GetRouteServer(service string, opts ...selector.SelectOpt
 func (app *DefaultApp) GetServerByID(serverID string) (module.ServerSession, error) {
 	session, ok := app.serverList.Load(serverID)
 	if !ok {
-		serviceName := serverID
+		moduleType := serverID // s[0] + @ + s[1] = moduleType@moduleID
 		s := strings.Split(serverID, "@")
 		if len(s) == 2 {
-			serviceName = s[0]
+			moduleType = s[0]
 		} else {
 			return nil, errors.Errorf("serverID is error %v", serverID)
 		}
-		sessions := app.GetServersByType(serviceName)
+		sessions := app.GetServersByType(moduleType)
 		for _, s := range sessions {
 			if s.GetNode().Id == serverID {
 				return s, nil
@@ -230,10 +215,10 @@ func (app *DefaultApp) GetServerByID(serverID string) (module.ServerSession, err
 	return nil, errors.Errorf("nofound %v", serverID)
 }
 
-// GetServersByType 通过服务类型(moduleType)获取服务实例列表
-func (app *DefaultApp) GetServersByType(serviceName string) []module.ServerSession {
+// GetServersByType 通过服务类型(moduleType)获取服务实例列表(处理缓存)
+func (app *DefaultApp) GetServersByType(moduleType string) []module.ServerSession {
 	sessions := make([]module.ServerSession, 0)
-	services, err := app.opts.Selector.GetService(serviceName)
+	services, err := app.opts.Selector.GetService(moduleType)
 	if err != nil {
 		log.Warning("GetServersByType %v", err)
 		return sessions
@@ -243,7 +228,7 @@ func (app *DefaultApp) GetServersByType(serviceName string) []module.ServerSessi
 		for _, node := range service.Nodes {
 			session, ok := app.serverList.Load(node.Id)
 			if !ok {
-				s, err := modulebase.NewServerSession(app, serviceName, node)
+				s, err := modulebase.NewServerSession(app, moduleType, node)
 				if err != nil {
 					log.Warning("NewServerSession %v", err)
 				} else {
@@ -259,9 +244,9 @@ func (app *DefaultApp) GetServersByType(serviceName string) []module.ServerSessi
 	return sessions
 }
 
-// GetServerBySelector 通过服务类型(moduleType)获取服务实例(可设置选择器)
-func (app *DefaultApp) GetServerBySelector(serviceName string, opts ...selector.SelectOption) (module.ServerSession, error) {
-	next, err := app.opts.Selector.Select(serviceName, opts...)
+// GetServerBySelector 通过服务类型(moduleType)获取服务实例(可设置选择器)(处理缓存)
+func (app *DefaultApp) GetServerBySelector(moduleType string, opts ...selector.SelectOption) (module.ServerSession, error) {
+	next, err := app.opts.Selector.Select(moduleType, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -271,7 +256,7 @@ func (app *DefaultApp) GetServerBySelector(serviceName string, opts ...selector.
 	}
 	session, ok := app.serverList.Load(node.Id)
 	if !ok {
-		s, err := modulebase.NewServerSession(app, serviceName, node)
+		s, err := modulebase.NewServerSession(app, moduleType, node)
 		if err != nil {
 			return nil, err
 		}
@@ -280,7 +265,6 @@ func (app *DefaultApp) GetServerBySelector(serviceName string, opts ...selector.
 	}
 	session.(module.ServerSession).SetNode(node)
 	return session.(module.ServerSession), nil
-
 }
 
 // Call RPC调用(需要等待结果)
@@ -301,25 +285,27 @@ func (app *DefaultApp) CallNR(ctx context.Context, moduleType, _func string, par
 	return server.CallNR(ctx, _func, params...)
 }
 
-// OnConfigurationLoaded 设置配置初始化完成后回调
-func (app *DefaultApp) OnConfigurationLoaded(_func func(app module.App)) error {
+// --------------- 回调(hook)
+
+// OnConfigurationLoaded 设置应用启动配置初始化完成后回调
+func (app *DefaultApp) OnConfigurationLoaded(_func func(app module.IApp)) error {
 	app.configurationLoaded = _func
 	return nil
 }
 
-// GetModuleInited 获取模块初始化完成后回调函数
-func (app *DefaultApp) GetModuleInited() func(app module.App, module module.Module) {
+// GetModuleInited 获取每个模块初始化完成后回调函数
+func (app *DefaultApp) GetModuleInited() func(app module.IApp, module module.Module) {
 	return app.moduleInited
 }
 
-// OnModuleInited 设置模块初始化完成后回调
-func (app *DefaultApp) OnModuleInited(_func func(app module.App, module module.Module)) error {
+// OnModuleInited 设置每个模块初始化完成后回调
+func (app *DefaultApp) OnModuleInited(_func func(app module.IApp, module module.Module)) error {
 	app.moduleInited = _func
 	return nil
 }
 
 // OnStartup 设置应用启动完成后回调
-func (app *DefaultApp) OnStartup(_func func(app module.App)) error {
+func (app *DefaultApp) OnStartup(_func func(app module.IApp)) error {
 	app.startup = _func
 	return nil
 }

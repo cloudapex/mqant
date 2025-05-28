@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//Package mqant mqant
+// Package mqant mqant
 package mqant
 
 import (
@@ -20,8 +20,8 @@ import (
 	"github.com/liangdas/mqant/module"
 )
 
-//CreateApp 创建mqant的app实例
-func CreateApp(opts ...module.Option) module.App {
+// CreateApp 创建mqant的app实例
+func CreateApp(opts ...module.Option) module.IApp {
 	opts = append(opts, module.Version(version))
 	return app.NewApp(opts...)
 }

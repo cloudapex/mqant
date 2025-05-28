@@ -25,7 +25,7 @@ import (
 )
 
 // NewServerSession 创建一个节点实例
-func NewServerSession(app module.App, name string, node *registry.Node) (module.ServerSession, error) {
+func NewServerSession(app module.IApp, name string, node *registry.Node) (module.ServerSession, error) {
 	session := &serverSession{
 		name: name,
 		node: node,
@@ -43,7 +43,7 @@ type serverSession struct {
 	node *registry.Node
 	name string
 	rpc  mqrpc.RPCClient
-	app  module.App
+	app  module.IApp
 }
 
 func (c *serverSession) GetID() string {
@@ -57,7 +57,7 @@ func (c *serverSession) GetRPC() mqrpc.RPCClient {
 	return c.rpc
 }
 
-func (c *serverSession) GetApp() module.App {
+func (c *serverSession) GetApp() module.IApp {
 	return c.app
 }
 func (c *serverSession) GetNode() *registry.Node {

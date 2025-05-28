@@ -17,7 +17,7 @@ import (
 
 func newOptions(opts ...module.Option) module.Options {
 	var wdPath, confPath, Logdir, BIdir *string
-	var ProcessID *string
+	var ProcessEnv *string
 	opt := module.Options{
 		Registry:         registry.DefaultRegistry,
 		Selector:         cache.NewSelector(),
@@ -40,20 +40,20 @@ func newOptions(opts ...module.Option) module.Options {
 		o(&opt)
 	}
 
+	// 解析输入的参数
 	if opt.Parse {
 		wdPath = flag.String("wd", "", "Server work directory")
 		confPath = flag.String("conf", "", "Server configuration file path")
-		ProcessID = flag.String("pid", "development", "Server ProcessID?")
+		ProcessEnv = flag.String("env", "development", "Server ProcessEnv?")
 		Logdir = flag.String("log", "", "Log file directory?")
 		BIdir = flag.String("bi", "", "bi file directory?")
-		flag.Parse() //解析输入的参数
+		flag.Parse()
 	}
 
 	if opt.Nats == nil {
 		nc, err := nats.Connect(nats.DefaultURL)
 		if err != nil {
 			log.Error("nats agent: %s", err.Error())
-			//panic(fmt.Sprintf("nats agent: %s", err.Error()))
 		}
 		opt.Nats = nc
 	}
@@ -61,12 +61,16 @@ func newOptions(opts ...module.Option) module.Options {
 	if opt.WorkDir == "" {
 		opt.WorkDir = *wdPath
 	}
-	if opt.ProcessID == "" {
-		opt.ProcessID = *ProcessID
-		if opt.ProcessID == "" {
-			opt.ProcessID = "development"
+
+	// 设置进程分组环境
+	if opt.ProcessEnv == "" {
+		opt.ProcessEnv = *ProcessEnv
+		if opt.ProcessEnv == "" {
+			opt.ProcessEnv = "development"
 		}
 	}
+
+	// 检查设置工作目录
 	ApplicationDir := ""
 	if opt.WorkDir != "" {
 		_, err := os.Open(opt.WorkDir)
@@ -86,6 +90,8 @@ func newOptions(opts ...module.Option) module.Options {
 
 	}
 	opt.WorkDir = ApplicationDir
+
+	// 检查主配置文件和创建日志文件
 	defaultConfPath := fmt.Sprintf("%s/bin/conf/server.json", ApplicationDir)
 	defaultLogPath := fmt.Sprintf("%s/bin/logs", ApplicationDir)
 	defaultBIPath := fmt.Sprintf("%s/bin/bi", ApplicationDir)

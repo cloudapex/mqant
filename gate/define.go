@@ -94,8 +94,8 @@ type GateHandler interface {
 type Session interface {
 	mqrpc.Marshaler
 
-	GetApp() module.App
-	SetApp(module.App)
+	GetApp() module.IApp
+	SetApp(module.IApp)
 
 	GetIP() string
 	SetIP(ip string)

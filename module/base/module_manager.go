@@ -30,7 +30,7 @@ func NewModuleManager() (m *ModuleManager) {
 
 // ModuleManager 模块管理器
 type ModuleManager struct {
-	app     module.App
+	app     module.IApp
 	mods    []*DefaultModule
 	runMods []*DefaultModule
 }
@@ -54,12 +54,12 @@ func (mer *ModuleManager) RegisterRunMod(mi module.Module) {
 }
 
 // Init 初始化
-func (mer *ModuleManager) Init(app module.App, ProcessID string) {
+func (mer *ModuleManager) Init(app module.IApp, ProcessID string) {
 	log.Info("This service ModuleGroup(ProcessID) is [%s]", ProcessID)
 	mer.app = app
 	mer.CheckModuleSettings() //配置文件规则检查
 	for i := 0; i < len(mer.mods); i++ {
-		for Type, modSettings := range app.Configs().Module {
+		for Type, modSettings := range app.Config().Module {
 			if mer.mods[i].mi.GetType() == Type { // mer.mods匹配Conf.ModuleType
 				for _, setting := range modSettings {
 					//这里可能有BUG 公网IP和局域网IP处理方式可能不一样,先不管
@@ -92,7 +92,7 @@ func (mer *ModuleManager) Init(app module.App, ProcessID string) {
 // 每一个类型的Module列表中ProcessID不能重复
 func (mer *ModuleManager) CheckModuleSettings() {
 	gid := map[string]string{} //用来保存全局ID-ModuleType
-	for Type, modSettings := range mer.app.Configs().Module {
+	for Type, modSettings := range mer.app.Config().Module {
 		pid := map[string]string{} //用来保存模块中的 ProcessID-ID
 		for _, setting := range modSettings {
 			if Stype, ok := gid[setting.ID]; ok {
