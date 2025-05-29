@@ -48,10 +48,10 @@ type Config struct {
 
 // ModuleSettings 模块配置
 type ModuleSettings struct {
-	ID        string `json:"ID"` // 节点id(指@符号后面的值)
-	Host      string // 没啥用
-	ProcessID string
-	Settings  map[string]interface{}
+	ID         string `json:"ID"` // 节点id(指@符号后面的值)
+	Host       string // 没啥用
+	ProcessEnv string
+	Settings   map[string]interface{}
 }
 
 // Nats nats配置

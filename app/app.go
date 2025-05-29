@@ -57,7 +57,7 @@ type DefaultApp struct {
 	serviceRoute func(app module.IApp, route string) string
 
 	configurationLoaded func(app module.IApp)                              // 应用启动配置初始化完成后回调
-	moduleInited        func(app module.IApp, module module.Module)        // 每个模块初始化完成后回调
+	moduleInited        func(app module.IApp, module module.IModule)       // 每个模块初始化完成后回调
 	startup             func(app module.IApp)                              // 应用启动完成后回调
 	serviceDeleted      func(app module.IApp, moduleName, serverId string) // 当模块服务断开删除时回调
 }
@@ -107,7 +107,7 @@ func (this *DefaultApp) initNats() error {
 }
 
 // Run 运行应用
-func (this *DefaultApp) Run(mods ...module.Module) error {
+func (this *DefaultApp) Run(mods ...module.IModule) error {
 	var err error
 
 	// init consul
@@ -219,7 +219,7 @@ func (this *DefaultApp) UpdateOptions(opts ...module.Option) error {
 func (this *DefaultApp) Watcher(node *registry.Node) {
 	session, ok := this.serverList.Load(node.Id)
 	if ok && session != nil {
-		session.(module.ServerSession).GetRPC().Done()
+		session.(module.IServerSession).GetRPC().Done()
 		this.serverList.Delete(node.Id)
 	}
 
@@ -246,7 +246,7 @@ func (this *DefaultApp) SetServiceRoute(fn func(app module.IApp, route string) s
 }
 
 // GetRouteServer 获取服务实例(通过服务ID|服务类型,可设置选择器过滤)
-func (this *DefaultApp) GetRouteServer(service string, opts ...selector.SelectOption) (module.ServerSession, error) {
+func (this *DefaultApp) GetRouteServer(service string, opts ...selector.SelectOption) (module.IServerSession, error) {
 	if this.serviceRoute != nil { // 进行一次路由转换
 		service = this.serviceRoute(this, service)
 	}
@@ -263,7 +263,7 @@ func (this *DefaultApp) GetRouteServer(service string, opts ...selector.SelectOp
 }
 
 // GetServerByID 通过服务ID(moduleType@id)获取服务实例
-func (this *DefaultApp) GetServerByID(serverID string) (module.ServerSession, error) {
+func (this *DefaultApp) GetServerByID(serverID string) (module.IServerSession, error) {
 	session, ok := this.serverList.Load(serverID)
 	if !ok {
 		moduleType := serverID // s[0] + @ + s[1] = moduleType@moduleID
@@ -280,14 +280,14 @@ func (this *DefaultApp) GetServerByID(serverID string) (module.ServerSession, er
 			}
 		}
 	} else {
-		return session.(module.ServerSession), nil
+		return session.(module.IServerSession), nil
 	}
 	return nil, errors.Errorf("nofound %v", serverID)
 }
 
 // GetServersByType 通过服务类型(moduleType)获取服务实例列表(处理缓存)
-func (this *DefaultApp) GetServersByType(moduleType string) []module.ServerSession {
-	sessions := make([]module.ServerSession, 0)
+func (this *DefaultApp) GetServersByType(moduleType string) []module.IServerSession {
+	sessions := make([]module.IServerSession, 0)
 	services, err := this.opts.Selector.GetService(moduleType)
 	if err != nil {
 		log.Warning("GetServersByType %v", err)
@@ -300,14 +300,14 @@ func (this *DefaultApp) GetServersByType(moduleType string) []module.ServerSessi
 				log.Warning("getServerSessionSafe %v", err)
 				continue
 			}
-			sessions = append(sessions, session.(module.ServerSession))
+			sessions = append(sessions, session.(module.IServerSession))
 		}
 	}
 	return sessions
 }
 
 // GetServerBySelector 通过服务类型(moduleType)获取服务实例(可设置选择器)(处理缓存)
-func (this *DefaultApp) GetServerBySelector(moduleType string, opts ...selector.SelectOption) (module.ServerSession, error) {
+func (this *DefaultApp) GetServerBySelector(moduleType string, opts ...selector.SelectOption) (module.IServerSession, error) {
 	next, err := this.opts.Selector.Select(moduleType, opts...)
 	if err != nil {
 		return nil, err
@@ -320,15 +320,15 @@ func (this *DefaultApp) GetServerBySelector(moduleType string, opts ...selector.
 	if err != nil {
 		return nil, err
 	}
-	return session.(module.ServerSession), nil
+	return session.(module.IServerSession), nil
 }
 
 // getServerSessionSafe create and store serverSession safely
-func (this *DefaultApp) getServerSessionSafe(node *registry.Node, moduleType string) (module.ServerSession, error) {
+func (this *DefaultApp) getServerSessionSafe(node *registry.Node, moduleType string) (module.IServerSession, error) {
 	session, ok := this.serverList.Load(node.Id)
 	if ok {
-		session.(module.ServerSession).SetNode(node)
-		return session.(module.ServerSession), nil
+		session.(module.IServerSession).SetNode(node)
+		return session.(module.IServerSession), nil
 	}
 	// new
 	s, err := modulebase.NewServerSession(this, moduleType, node)
@@ -336,7 +336,7 @@ func (this *DefaultApp) getServerSessionSafe(node *registry.Node, moduleType str
 		return nil, err
 	}
 	_session, _ := this.serverList.LoadOrStore(node.Id, s)
-	_s := _session.(module.ServerSession)
+	_s := _session.(module.IServerSession)
 	if s != _s { // 释放自己创建的那个
 		go s.GetRPC().Done()
 	}
@@ -378,12 +378,12 @@ func (this *DefaultApp) OnConfigurationLoaded(_func func(app module.IApp)) error
 }
 
 // GetModuleInited 获取每个模块初始化完成后回调函数
-func (this *DefaultApp) GetModuleInited() func(app module.IApp, module module.Module) {
+func (this *DefaultApp) GetModuleInited() func(app module.IApp, module module.IModule) {
 	return this.moduleInited
 }
 
 // OnModuleInited 设置每个模块初始化完成后回调
-func (this *DefaultApp) OnModuleInited(_func func(app module.IApp, module module.Module)) error {
+func (this *DefaultApp) OnModuleInited(_func func(app module.IApp, module module.IModule)) error {
 	this.moduleInited = _func
 	return nil
 }

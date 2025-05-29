@@ -24,7 +24,7 @@ import (
 	"github.com/liangdas/mqant/network"
 )
 
-var _ module.RPCModule = &ModuleGate{}
+var _ module.IRPCModule = &ModuleGate{}
 
 type ModuleGate struct {
 	modulebase.ModuleBase
@@ -43,7 +43,7 @@ type ModuleGate struct {
 	sendMessageHook gate.SendMessageHook // 发送消息时的钩子回调
 }
 
-func (gt *ModuleGate) Init(subclass module.RPCModule, app module.IApp, settings *conf.ModuleSettings, opts ...gate.Option) {
+func (gt *ModuleGate) Init(subclass module.IRPCModule, app module.IApp, settings *conf.ModuleSettings, opts ...gate.Option) {
 	gt.opts = gate.NewOptions(opts...)
 	gt.ModuleBase.Init(subclass, app, settings, gt.opts.Opts...) //这是必须的
 	if gt.opts.WsAddr == "" {

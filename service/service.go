@@ -71,11 +71,7 @@ func (s *service) Server() server.Server {
 	return s.opts.Server
 }
 
-func (s *service) String() string {
-	return "mqant"
-}
-
-func (s *service) Start() error {
+func (s *service) start() error {
 	for _, fn := range s.opts.BeforeStart {
 		if err := fn(); err != nil {
 			return err
@@ -99,7 +95,7 @@ func (s *service) Start() error {
 	return nil
 }
 
-func (s *service) Stop() error {
+func (s *service) stop() error {
 	var gerr error
 
 	for _, fn := range s.opts.BeforeStop {
@@ -126,7 +122,7 @@ func (s *service) Stop() error {
 }
 
 func (s *service) Run() error {
-	if err := s.Start(); err != nil {
+	if err := s.start(); err != nil {
 		return err
 	}
 
@@ -146,5 +142,6 @@ func (s *service) Run() error {
 
 	// exit reg loop
 	close(ex)
-	return s.Stop()
+	return s.stop()
 }
+func (s *service) String() string { return "rpc.service" }

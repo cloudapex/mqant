@@ -12,13 +12,13 @@ import (
 	timewheel "github.com/liangdas/mqant/module/modules/timer"
 )
 
-var TimerModule = func() module.Module {
+var TimerModule = func() module.IModule {
 	Timer := new(Timer)
 	return Timer
 }
 
 type Timer struct {
-	module.Module
+	module.IModule
 }
 
 func (m *Timer) GetType() string {

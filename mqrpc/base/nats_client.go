@@ -37,10 +37,10 @@ type NatsClient struct {
 	done              chan error
 	subs              *nats.Subscription
 	isClose           bool
-	session           module.ServerSession
+	session           module.IServerSession
 }
 
-func NewNatsClient(app module.IApp, session module.ServerSession) (client *NatsClient, err error) {
+func NewNatsClient(app module.IApp, session module.IServerSession) (client *NatsClient, err error) {
 	client = new(NatsClient)
 	client.session = session
 	client.app = app

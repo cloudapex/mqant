@@ -19,7 +19,7 @@ import (
 // 如随机到服务节点Hostname可以用modulus,cache,random等通用规则
 // 例如:
 // im://modulus/remove_feeds_member?msg_id=1002
-type FSelector func(session gate.Session, topic string, u *url.URL) (s module.ServerSession, err error)
+type FSelector func(session gate.Session, topic string, u *url.URL) (s module.IServerSession, err error)
 
 // FDataParsing 指定数据解析函数
 // 返回值如bean！=nil err==nil则会向后端模块传入 func(session,bean)(result, error)
@@ -30,7 +30,7 @@ type FDataParsing func(topic string, u *url.URL, msg []byte) (bean interface{}, 
 type Option func(*URIRoute)
 
 // NewURIRoute NewURIRoute
-func NewURIRoute(module module.RPCModule, opts ...Option) *URIRoute {
+func NewURIRoute(module module.IRPCModule, opts ...Option) *URIRoute {
 	route := &URIRoute{
 		module:      module,
 		CallTimeOut: module.GetApp().Options().RPCExpired,
@@ -64,7 +64,7 @@ func CallTimeOut(t time.Duration) Option {
 
 // URIRoute URIRoute
 type URIRoute struct {
-	module      module.RPCModule
+	module      module.IRPCModule
 	Selector    FSelector
 	DataParsing FDataParsing
 	CallTimeOut time.Duration
@@ -91,7 +91,7 @@ func (u *URIRoute) OnRoute(session gate.Session, topic string, msg []byte) (bool
 	argsType = make([]string, 2)
 	args = make([][]byte, 2)
 	session.SetTopic(topic)
-	var serverSession module.ServerSession
+	var serverSession module.IServerSession
 	if u.Selector != nil {
 		ss, err := u.Selector(session, topic, uu)
 		if err != nil {

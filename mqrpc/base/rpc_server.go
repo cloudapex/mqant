@@ -29,7 +29,7 @@ import (
 )
 
 type RPCServer struct {
-	module         module.Module
+	module         module.IModule
 	app            module.IApp
 	functions      map[string]*mqrpc.FunctionInfo
 	nats_server    *NatsServer
@@ -41,7 +41,7 @@ type RPCServer struct {
 	executing      int64                  //正在执行的goroutine数量
 }
 
-func NewRPCServer(app module.IApp, module module.Module) (mqrpc.RPCServer, error) {
+func NewRPCServer(app module.IApp, module module.IModule) (mqrpc.RPCServer, error) {
 	rpc_server := new(RPCServer)
 	rpc_server.app = app
 	rpc_server.module = module

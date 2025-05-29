@@ -25,8 +25,8 @@ import (
 	"github.com/liangdas/mqant/registry"
 )
 
-// NewServerSession 创建一个节点实例
-func NewServerSession(app module.IApp, name string, node *registry.Node) (module.ServerSession, error) {
+// NewServerSession 创建一个节点实例(rpcClient)
+func NewServerSession(app module.IApp, name string, node *registry.Node) (module.IServerSession, error) {
 	session := &serverSession{
 		name: name,
 		node: node,
@@ -48,49 +48,49 @@ type serverSession struct {
 	app  module.IApp
 }
 
-func (c *serverSession) GetID() string {
-	return c.node.Id
+func (this *serverSession) GetID() string {
+	return this.node.Id
 }
 
-func (c *serverSession) GetName() string {
-	return c.name
+func (this *serverSession) GetName() string {
+	return this.name
 }
-func (c *serverSession) GetRPC() mqrpc.RPCClient {
-	return c.rpc
-}
-
-func (c *serverSession) GetApp() module.IApp {
-	return c.app
-}
-func (c *serverSession) GetNode() *registry.Node {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.node
+func (this *serverSession) GetRPC() mqrpc.RPCClient {
+	return this.rpc
 }
 
-func (c *serverSession) SetNode(node *registry.Node) (err error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.node = node
+func (this *serverSession) GetApp() module.IApp {
+	return this.app
+}
+func (this *serverSession) GetNode() *registry.Node {
+	this.mu.RLock()
+	defer this.mu.RUnlock()
+	return this.node
+}
+
+func (this *serverSession) SetNode(node *registry.Node) (err error) {
+	this.mu.Lock()
+	defer this.mu.Unlock()
+	this.node = node
 	return
 }
 
 // 消息请求 需要回复
-func (c *serverSession) Call(ctx context.Context, _func string, params ...interface{}) (interface{}, error) {
-	return c.rpc.Call(ctx, _func, params...)
+func (this *serverSession) Call(ctx context.Context, _func string, params ...interface{}) (interface{}, error) {
+	return this.rpc.Call(ctx, _func, params...)
 }
 
 // 消息请求 不需要回复
-func (c *serverSession) CallNR(ctx context.Context, _func string, params ...interface{}) (err error) {
-	return c.rpc.CallNR(ctx, _func, params...)
+func (this *serverSession) CallNR(ctx context.Context, _func string, params ...interface{}) (err error) {
+	return this.rpc.CallNR(ctx, _func, params...)
 }
 
 // 消息请求 需要回复
-func (c *serverSession) CallArgs(ctx context.Context, _func string, argsType []string, args [][]byte) (interface{}, error) {
-	return c.rpc.CallArgs(ctx, _func, argsType, args)
+func (this *serverSession) CallArgs(ctx context.Context, _func string, argsType []string, args [][]byte) (interface{}, error) {
+	return this.rpc.CallArgs(ctx, _func, argsType, args)
 }
 
 // 消息请求 不需要回复
-func (c *serverSession) CallNRArgs(ctx context.Context, _func string, argsType []string, args [][]byte) (err error) {
-	return c.rpc.CallNRArgs(ctx, _func, argsType, args)
+func (this *serverSession) CallNRArgs(ctx context.Context, _func string, argsType []string, args [][]byte) (err error) {
+	return this.rpc.CallNRArgs(ctx, _func, argsType, args)
 }

@@ -250,7 +250,7 @@ type Agent interface {
 
 // Gate 网关代理定义
 type Gate interface {
-	module.RPCModule
+	module.IRPCModule
 
 	Options() Options
 

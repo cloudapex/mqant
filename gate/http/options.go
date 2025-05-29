@@ -34,7 +34,7 @@ type Service struct {
 	// hander
 	Hander string
 	// node
-	SrvSession module.ServerSession
+	SrvSession module.IServerSession
 }
 
 // DefaultRoute 默认路由规则

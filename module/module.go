@@ -25,33 +25,12 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
-// ProtocolMarshal 数据包装
-type ProtocolMarshal interface {
-	GetData() []byte
-}
-
-// ServerSession 服务代理
-type ServerSession interface {
-	GetID() string
-	GetName() string
-	GetRPC() mqrpc.RPCClient
-	GetApp() IApp
-
-	GetNode() *registry.Node
-	SetNode(node *registry.Node) (err error)
-
-	Call(ctx context.Context, _func string, params ...interface{}) (interface{}, error)                // 等待返回结果
-	CallArgs(ctx context.Context, _func string, argsType []string, args [][]byte) (interface{}, error) // 内部使用(ctx参数必须装进args中)
-	CallNR(ctx context.Context, _func string, params ...interface{}) (err error)                       // 无需等待结果
-	CallNRArgs(ctx context.Context, _func string, argsType []string, args [][]byte) (err error)        // 内部使用(ctx参数必须装进args中)
-}
-
 // IApp mqant应用定义
 type IApp interface {
 	OnInit() error
 	OnDestroy() error
 
-	Run(mods ...Module) error
+	Run(mods ...IModule) error
 
 	// Config 获取启动配置
 	Config() conf.Config
@@ -73,13 +52,13 @@ type IApp interface {
 	SetServiceRoute(fn func(app IApp, route string) string) error
 
 	// 获取服务实例(通过服务ID|服务类型,可设置选择器过滤)
-	GetRouteServer(service string, opts ...selector.SelectOption) (ServerSession, error) //获取经过筛选过的服务
+	GetRouteServer(service string, opts ...selector.SelectOption) (IServerSession, error) //获取经过筛选过的服务
 	// 通过服务ID(moduleType@id)获取服务实例
-	GetServerByID(serverID string) (ServerSession, error)
+	GetServerByID(serverID string) (IServerSession, error)
 	// 通过服务类型(moduleType)获取服务实例列表
-	GetServersByType(serviceName string) []ServerSession
+	GetServersByType(serviceName string) []IServerSession
 	// 通过服务类型(moduleType)获取服务实例(可设置选择器)
-	GetServerBySelector(serviceName string, opts ...selector.SelectOption) (ServerSession, error)
+	GetServerBySelector(serviceName string, opts ...selector.SelectOption) (IServerSession, error)
 
 	// Call RPC调用(需要等待结果)
 	Call(ctx context.Context, moduleType, _func string, param mqrpc.ParamOption, opts ...selector.SelectOption) (interface{}, error)
@@ -90,17 +69,18 @@ type IApp interface {
 
 	// 回调(hook)
 	OnConfigurationLoaded(func(app IApp)) error                               // 设置应用启动配置初始化完成后回调
-	OnModuleInited(func(app IApp, module Module)) error                       // 设置每个模块初始化完成后回调
-	GetModuleInited() func(app IApp, module Module)                           // 获取每个模块初始化完成后回调函数
+	OnModuleInited(func(app IApp, module IModule)) error                      // 设置每个模块初始化完成后回调
+	GetModuleInited() func(app IApp, module IModule)                          // 获取每个模块初始化完成后回调函数
 	OnStartup(func(app IApp)) error                                           // 设置应用启动完成后回调
 	OnServiceDeleted(_func func(app IApp, moduleName, serverId string)) error // 设置当模块服务断开删除时回调
 }
 
-// Module 基本模块定义
-type Module interface {
-	GetType() string //模块类型
-	Version() string //模块版本
+// IModule 基本模块定义
+type IModule interface {
 	GetApp() IApp
+
+	GetType() string // 模块类型
+	Version() string // 模块版本
 
 	Run(closeSig chan bool)
 
@@ -110,9 +90,9 @@ type Module interface {
 	OnConfChanged(settings *conf.ModuleSettings) // 为以后动态服务发现做准备(目前没用)
 }
 
-// RPCModule RPC模块定义
-type RPCModule interface {
-	Module
+// IRPCModule RPC模块定义
+type IRPCModule interface {
+	IModule
 	context.Context
 
 	// 节点ID
@@ -120,16 +100,32 @@ type RPCModule interface {
 	GetModuleSettings() (settings *conf.ModuleSettings)
 
 	// 获取服务实例(通过服务ID|服务类型,可设置选择器过滤)
-	GetRouteServer(service string, opts ...selector.SelectOption) (ServerSession, error) //获取经过筛选过的服务
+	GetRouteServer(service string, opts ...selector.SelectOption) (IServerSession, error) //获取经过筛选过的服务
 	// 通过服务ID(moduleType@id)获取服务实例
-	GetServerByID(serverID string) (ServerSession, error)
+	GetServerByID(serverID string) (IServerSession, error)
 	// 通过服务类型(moduleType)获取服务实例列表
-	GetServersByType(serviceName string) []ServerSession
+	GetServersByType(serviceName string) []IServerSession
 	// 通过服务类型(moduleType)获取服务实例(可设置选择器)
-	GetServerBySelector(serviceName string, opts ...selector.SelectOption) (ServerSession, error)
+	GetServerBySelector(serviceName string, opts ...selector.SelectOption) (IServerSession, error)
 
 	Call(ctx context.Context, moduleType, _func string, params mqrpc.ParamOption, opts ...selector.SelectOption) (interface{}, error)
 	CallNR(ctx context.Context, moduleType, _func string, params ...interface{}) error
+}
+
+// IServerSession 服务代理
+type IServerSession interface {
+	GetID() string
+	GetName() string
+	GetRPC() mqrpc.RPCClient
+	GetApp() IApp
+
+	GetNode() *registry.Node
+	SetNode(node *registry.Node) (err error)
+
+	Call(ctx context.Context, _func string, params ...interface{}) (interface{}, error)                // 等待返回结果
+	CallArgs(ctx context.Context, _func string, argsType []string, args [][]byte) (interface{}, error) // 内部使用(ctx参数必须装进args中)
+	CallNR(ctx context.Context, _func string, params ...interface{}) (err error)                       // 无需等待结果
+	CallNRArgs(ctx context.Context, _func string, argsType []string, args [][]byte) (err error)        // 内部使用(ctx参数必须装进args中)
 }
 
 // RPC传输时Context中的数据可能会需要赋值跨服务的app(为什么会有这个接口,会循环import)

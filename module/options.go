@@ -51,10 +51,10 @@ type FileNameHandler func(logdir, prefix, processID, suffix string) string
 type ClientRPCHandler func(app IApp, server registry.Node, rpcinfo *rpcpb.RPCInfo, result interface{}, err error, exec_time int64)
 
 // ServerRPCHandler 服务方RPC监控
-type ServerRPCHandler func(app IApp, module Module, callInfo *mqrpc.CallInfo)
+type ServerRPCHandler func(app IApp, module IModule, callInfo *mqrpc.CallInfo)
 
 // ServerRPCHandler 服务方RPC监控
-type RpcCompleteHandler func(app IApp, module Module, callInfo *mqrpc.CallInfo, input []interface{}, out []interface{}, execTime time.Duration)
+type RpcCompleteHandler func(app IApp, module IModule, callInfo *mqrpc.CallInfo, input []interface{}, out []interface{}, execTime time.Duration)
 
 // Version 应用版本
 func Version(v string) Option {

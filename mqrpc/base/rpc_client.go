@@ -32,7 +32,7 @@ type RPCClient struct {
 	nats_client *NatsClient
 }
 
-func NewRPCClient(app module.IApp, session module.ServerSession) (mqrpc.RPCClient, error) {
+func NewRPCClient(app module.IApp, session module.IServerSession) (mqrpc.RPCClient, error) {
 	rpc_client := new(RPCClient)
 	rpc_client.app = app
 	nats_client, err := NewNatsClient(app, session)
