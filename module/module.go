@@ -89,10 +89,11 @@ type IApp interface {
 	CallBroadcast(ctx context.Context, moduleName, _func string, params ...interface{})
 
 	// 回调(hook)
-	OnConfigurationLoaded(func(app IApp)) error         // 设置应用启动配置初始化完成后回调
-	OnModuleInited(func(app IApp, module Module)) error // 设置每个模块初始化完成后回调
-	GetModuleInited() func(app IApp, module Module)     // 获取每个模块初始化完成后回调函数
-	OnStartup(func(app IApp)) error                     // 设置应用启动完成后回调
+	OnConfigurationLoaded(func(app IApp)) error                               // 设置应用启动配置初始化完成后回调
+	OnModuleInited(func(app IApp, module Module)) error                       // 设置每个模块初始化完成后回调
+	GetModuleInited() func(app IApp, module Module)                           // 获取每个模块初始化完成后回调函数
+	OnStartup(func(app IApp)) error                                           // 设置应用启动完成后回调
+	OnServiceDeleted(_func func(app IApp, moduleName, serverId string)) error // 设置当模块服务断开删除时回调
 }
 
 // Module 基本模块定义
