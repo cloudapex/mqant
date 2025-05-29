@@ -16,11 +16,12 @@
 package modulebase
 
 import (
+	"sync"
+
 	"github.com/liangdas/mqant/conf"
 	"github.com/liangdas/mqant/log"
 	"github.com/liangdas/mqant/module"
-	"runtime"
-	"sync"
+	"github.com/liangdas/mqant/mqtools"
 )
 
 // DefaultModule 模块结构
@@ -33,14 +34,8 @@ type DefaultModule struct {
 
 func run(m *DefaultModule) {
 	defer func() {
-		if r := recover(); r != nil {
-			if conf.LenStackBuf > 0 {
-				buf := make([]byte, conf.LenStackBuf)
-				l := runtime.Stack(buf, false)
-				log.Error("%v: %s", r, buf[:l])
-			} else {
-				log.Error("%v", r)
-			}
+		if err := mqtools.Catch(recover()); err != nil {
+			log.Error("module[%q] run panic: %v", m.mi.GetType(), err)
 		}
 	}()
 	m.mi.Run(m.closeSig)
@@ -49,14 +44,8 @@ func run(m *DefaultModule) {
 
 func destroy(m *DefaultModule) {
 	defer func() {
-		if r := recover(); r != nil {
-			if conf.LenStackBuf > 0 {
-				buf := make([]byte, conf.LenStackBuf)
-				l := runtime.Stack(buf, false)
-				log.Error("%v: %s", r, buf[:l])
-			} else {
-				log.Error("%v", r)
-			}
+		if err := mqtools.Catch(recover()); err != nil {
+			log.Error("module[%q] destroy panic: %v", m.mi.GetType(), err)
 		}
 	}()
 	m.mi.OnDestroy()

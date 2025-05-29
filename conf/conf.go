@@ -19,23 +19,18 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 )
 
-var (
-	// LenStackBuf 异常堆栈信息
-	LenStackBuf = 1024
-	// Conf 全局配置结构体
-	Conf = Config{}
-)
+// Conf 全局配置结构体
+var Conf = Config{}
 
-// LoadConfig 加载配置
+// LoadConfig 加载本地配置
 func LoadConfig(Path string) {
-	fmt.Println("AppServer configuration path :", Path)
+	fmt.Println("app configuration path :", Path)
 
-	// Read config.
+	// Read config
 	if err := readFileInto(Path); err != nil {
 		panic(err)
 	}
@@ -50,13 +45,6 @@ type Config struct {
 	Nats     Nats
 	Settings map[string]interface{}
 }
-
-// rpc 进程间通信配置
-// type RPC struct {
-// 	MaxCoroutine int  //模块同时可以创建的最大协程数量默认是100
-// 	RPCExpired   int  `json:"RpcExpired"` //远程访问最后期限值 单位秒[默认3秒] 这个值指定了在客户端可以等待服务端多长时间来应答
-// 	Log          bool //是否打印RPC的日志
-// }
 
 // ModuleSettings 模块配置
 type ModuleSettings struct {
@@ -96,13 +84,4 @@ func readFileInto(path string) error {
 	data = buf.Bytes()
 	//fmt.Print(string(data))
 	return json.Unmarshal(data, &Conf)
-}
-
-// If read the file has an error,it will throws a panic.
-func fileToStruct(path string, ptr *[]byte) {
-	data, err := ioutil.ReadFile(path)
-	if err != nil {
-		panic(err)
-	}
-	*ptr = data
 }
