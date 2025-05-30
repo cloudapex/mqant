@@ -82,7 +82,7 @@ func Args2Bytes(arg interface{}) (string, []byte, error) {
 
 		// for context.Context with Specified types
 		if v2, ok := arg.(context.Context); ok {
-			maps := map[string]interface{}{}
+			maps := map[string]interface{}{} // 把支持trans的kv序列化到map中再编码进行传输
 			for k := range contextTransValues {
 				_v, _ok := v2.Value(k).(Marshaler)
 				if !_ok {
@@ -113,7 +113,7 @@ func Args2Bytes(arg interface{}) (string, []byte, error) {
 			return "", nil, fmt.Errorf("Args2Bytes [%v] not struct type", reflect.TypeOf(arg))
 		}
 
-		// struct for mqrpc.Marshaler
+		// 1 struct for mqrpc.Marshaler
 		if v2, ok := arg.(Marshaler); ok {
 			b, err := v2.Marshal()
 			if err != nil {
@@ -121,7 +121,7 @@ func Args2Bytes(arg interface{}) (string, []byte, error) {
 			}
 			return fmt.Sprintf("%v@%v", MARSHAL, reflect.TypeOf(arg)), b, nil
 		}
-		// struct for proto.Message
+		// 2 struct for proto.Message
 		if v2, ok := arg.(proto.Message); ok {
 			b, err := proto.Marshal(v2)
 			if err != nil {
@@ -130,7 +130,7 @@ func Args2Bytes(arg interface{}) (string, []byte, error) {
 			}
 			return fmt.Sprintf("%v@%v", PBPROTO, reflect.TypeOf(arg)), b, nil
 		}
-		// struct for gob.coding (default)
+		// 3 struct for gob.coding (default)
 		var buf bytes.Buffer
 		encoder := gob.NewEncoder(&buf)
 		if err := encoder.Encode(arg); err != nil {
