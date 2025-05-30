@@ -84,7 +84,7 @@ type IModule interface {
 
 	Run(closeSig chan bool)
 
-	OnInit(app IApp, settings *conf.ModuleSettings)
+	OnInit(app IApp, settings *conf.ModuleSettings) // 只需最终类实现(内部调用层层调用base.Init)即可
 	OnDestroy()
 	OnAppConfigurationLoaded(app IApp)           // 当App初始化时调用，这个接口不管这个模块是否在这个进程运行都会调用
 	OnConfChanged(settings *conf.ModuleSettings) // 为以后动态服务发现做准备(目前没用)

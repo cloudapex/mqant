@@ -60,7 +60,7 @@ type GateHandler interface {
 	OnDestroy() // 退出事件,当主动关闭时释放所有的连接
 
 	// 获取最新Session数据
-	OnRpcUpdLoad(ctx context.Context, sessionId string) (Session, error)
+	OnRpcLoad(ctx context.Context, sessionId string) (Session, error)
 
 	// Bind the session with the the userId.
 	OnRpcBind(ctx context.Context, sessionId string, userId string) (Session, error)
@@ -81,7 +81,7 @@ type GateHandler interface {
 	OnRpcSend(ctx context.Context, sessionId string, topic string, body []byte) (bool, error)
 
 	// 广播消息给网关所有在连客户端
-	OnRpcBroadCast(ctx context.Context, topic string, body []byte) (int64, error)
+	OnRpcBroadcast(ctx context.Context, topic string, body []byte) (int64, error)
 
 	// 检查连接是否正常
 	OnRpcConnected(ctx context.Context, sessionId string) (bool, error)

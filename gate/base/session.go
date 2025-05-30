@@ -338,7 +338,7 @@ func (s *sessionAgent) ToUpdate() error {
 	if err != nil {
 		return fmt.Errorf("Gate not found serverId(%s), err:%v", s.session.ServerId, err)
 	}
-	result, err := server.Call(mqrpc.ContextWithTrace(context.Background(), s.GetTraceSpan()), "UpdLoad", s.session.SessionId)
+	result, err := server.Call(mqrpc.ContextWithTrace(context.Background(), s.GetTraceSpan()), "Load", s.session.SessionId)
 	if err != nil {
 		return fmt.Errorf("Call Gate serverId(%v) 'Update' err:%v", s.session.ServerId, err)
 	}

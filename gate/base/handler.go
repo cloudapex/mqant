@@ -24,15 +24,15 @@ import (
 
 	"github.com/liangdas/mqant/gate"
 	"github.com/liangdas/mqant/log"
+	"github.com/liangdas/mqant/mqtools"
 	"github.com/pkg/errors"
 )
 
 // NewGateHandler NewGateHandler
 func NewGateHandler(gate gate.Gate) *handler {
-	handler := &handler{
+	return &handler{
 		gate: gate,
 	}
-	return handler
 }
 
 // handler GateHandler
@@ -93,6 +93,7 @@ func (h *handler) Connect(a gate.Agent) {
 			h.lock.Unlock()
 		}
 	}
+	// 客户端连接和断开的监听器
 	if h.gate.GetSessionLearner() != nil {
 		go func() {
 			h.gate.GetSessionLearner().Connect(a.GetSession())
@@ -103,14 +104,12 @@ func (h *handler) Connect(a gate.Agent) {
 // 当连接关闭(客户端主动关闭或者异常断开)
 func (h *handler) DisConnect(a gate.Agent) {
 	defer func() {
-		if err := recover(); err != nil {
-			buff := make([]byte, 1024)
-			runtime.Stack(buff, false)
-			log.Error("handler DisConnect panic(%v)\n info:%s", err, string(buff))
+		if err := mqtools.Catch(recover()); err != nil {
+			log.Error("handler DisConnect panic:%v", err)
 		}
 		if a.GetSession() != nil {
 			h.sessions.Delete(a.GetSession().GetSessionID())
-			//已经建联成功的才计算
+			// 已经建联成功的才计算
 			if a.IsShaked() { // 握手
 				h.lock.Lock()
 				h.agentNum--
@@ -118,9 +117,10 @@ func (h *handler) DisConnect(a gate.Agent) {
 			}
 		}
 	}()
+	// 客户端连接和断开的监听器
 	if h.gate.GetSessionLearner() != nil {
 		if a.GetSession() != nil {
-			//没有session的就不返回了
+			// 没有session的就不回调了
 			h.gate.GetSessionLearner().DisConnect(a.GetSession())
 		}
 	}
@@ -128,8 +128,8 @@ func (h *handler) DisConnect(a gate.Agent) {
 
 // ========== Session RPC方法回调
 
-// 获取最新Session数据
-func (h *handler) OnRpcUpdLoad(ctx context.Context, sessionId string) (gate.Session, error) {
+// Load the latest session
+func (h *handler) OnRpcLoad(ctx context.Context, sessionId string) (gate.Session, error) {
 	agent, ok := h.sessions.Load(sessionId)
 	if !ok || agent == nil {
 		return nil, fmt.Errorf("No Sesssion found")
@@ -256,8 +256,27 @@ func (h *handler) OnRpcSend(ctx context.Context, sessionId string, topic string,
 	return true, nil
 }
 
+// check connect is normal for the session
+func (h *handler) OnRpcConnected(ctx context.Context, sessionId string) (bool, error) {
+	agent, ok := h.sessions.Load(sessionId)
+	if !ok || agent == nil {
+		return false, fmt.Errorf("No Sesssion found")
+	}
+	return agent.(gate.Agent).IsClosed(), nil
+}
+
+// Proactively close the connection of session
+func (h *handler) OnRpcClose(ctx context.Context, sessionId string) (bool, error) {
+	agent, ok := h.sessions.Load(sessionId)
+	if !ok || agent == nil {
+		return false, fmt.Errorf("No Sesssion found")
+	}
+	agent.(gate.Agent).Close()
+	return true, nil
+}
+
 // broadcast message to all session of the gate
-func (h *handler) OnRpcBroadCast(ctx context.Context, topic string, body []byte) (int64, error) {
+func (h *handler) OnRpcBroadcast(ctx context.Context, topic string, body []byte) (int64, error) {
 	var count int64 = 0
 	h.sessions.Range(func(key, agent interface{}) bool {
 		e := agent.(gate.Agent).SendPack(&gate.Pack{Topic: topic, Body: body})
@@ -269,23 +288,4 @@ func (h *handler) OnRpcBroadCast(ctx context.Context, topic string, body []byte)
 		return true
 	})
 	return count, nil
-}
-
-// 检查连接是否正常
-func (h *handler) OnRpcConnected(ctx context.Context, sessionId string) (bool, error) {
-	agent, ok := h.sessions.Load(sessionId)
-	if !ok || agent == nil {
-		return false, fmt.Errorf("No Sesssion found")
-	}
-	return agent.(gate.Agent).IsClosed(), nil
-}
-
-// 主动关闭连接
-func (h *handler) OnRpcClose(ctx context.Context, sessionId string) (bool, error) {
-	agent, ok := h.sessions.Load(sessionId)
-	if !ok || agent == nil {
-		return false, fmt.Errorf("No Sesssion found")
-	}
-	agent.(gate.Agent).Close()
-	return true, nil
 }
