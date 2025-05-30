@@ -14,6 +14,12 @@ import (
 	"github.com/pkg/errors"
 )
 
+// RPCParamSessionType gate.session 类型
+var RPCParamSessionType = "SESSION"
+
+// RPCParamProtocolMarshalType ProtocolMarshal类型
+var RPCParamProtocolMarshalType = "ProtocolMarshal"
+
 // FSelector 服务节点选择函数，可以自定义服务筛选规则
 // 如不指定,默认使用 Scheme作为moduleType,Hostname作为服务节点nodeId
 // 如随机到服务节点Hostname可以用modulus,cache,random等通用规则
@@ -156,7 +162,7 @@ func (u *URIRoute) OnRoute(session gate.ISession, topic string, msg []byte) (boo
 	s := session.Clone()
 	s.SetTopic(topic)
 	if needreturn {
-		argsType[0] = gate.RPCParamSessionType
+		argsType[0] = RPCParamSessionType
 		b, err := s.Marshal()
 		if err != nil {
 			return needreturn, nil, err
@@ -170,7 +176,7 @@ func (u *URIRoute) OnRoute(session gate.ISession, topic string, msg []byte) (boo
 		return needreturn, result, nil
 	}
 
-	argsType[0] = gate.RPCParamSessionType
+	argsType[0] = RPCParamSessionType
 	b, err := s.Marshal()
 	if err != nil {
 		return needreturn, nil, err

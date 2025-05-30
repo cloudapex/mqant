@@ -25,12 +25,6 @@ import (
 	"github.com/liangdas/mqant/network"
 )
 
-// RPCParamSessionType gate.session 类型
-var RPCParamSessionType = "SESSION"
-
-// RPCParamProtocolMarshalType ProtocolMarshal类型
-var RPCParamProtocolMarshalType = "ProtocolMarshal"
-
 const (
 	// RPC_CLIENT_MSG RPC处理来自客户端的消息
 	RPC_CLIENT_MSG string = "RPC_CLIENT_MSG"
