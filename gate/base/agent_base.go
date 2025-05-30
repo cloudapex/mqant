@@ -30,7 +30,7 @@ import (
 	"github.com/liangdas/mqant/network"
 )
 
-type agent struct {
+type agentBase struct {
 	Impl gate.Agent
 
 	gate                         gate.Gate
@@ -49,7 +49,7 @@ type agent struct {
 	sendPackChan                 chan *gate.Pack // 需要发送的消息缓存
 }
 
-func (this *agent) Init(impl gate.Agent, gt gate.Gate, conn network.Conn) error {
+func (this *agentBase) Init(impl gate.Agent, gt gate.Gate, conn network.Conn) error {
 	this.Impl = impl
 	this.ch = make(chan int, gt.Options().ConcurrentTasks)
 	this.conn = conn
@@ -65,25 +65,25 @@ func (this *agent) Init(impl gate.Agent, gt gate.Gate, conn network.Conn) error 
 	this.lastStorageHeartbeatDataTime = time.Duration(time.Now().UnixNano())
 	return nil
 }
-func (this *agent) Close() {
+func (this *agentBase) Close() {
 	go func() { // 关闭连接部分情况下会阻塞超时，因此放协程去处理
 		if this.conn != nil {
 			this.conn.Close()
 		}
 	}()
 }
-func (this *agent) OnClose() error {
+func (this *agentBase) OnClose() error {
 	this.isClosed = true
 	close(this.sendPackChan)
 	this.gate.GetAgentLearner().DisConnect(this) //发送连接断开的事件
 	return nil
 }
-func (this *agent) Destroy() {
+func (this *agentBase) Destroy() {
 	if this.conn != nil {
 		this.conn.Destroy()
 	}
 }
-func (this *agent) Run() (err error) {
+func (this *agentBase) Run() (err error) {
 	defer func() {
 		if err := recover(); err != nil {
 			buff := make([]byte, 1024)
@@ -116,25 +116,25 @@ func (this *agent) Run() (err error) {
 // ========== 属性方法
 
 // ConnTime 建立连接的时间
-func (this *agent) ConnTime() time.Time { return this.connTime }
+func (this *agentBase) ConnTime() time.Time { return this.connTime }
 
 // IsClosed 是否关闭了
-func (this *agent) IsClosed() bool { return this.isClosed }
+func (this *agentBase) IsClosed() bool { return this.isClosed }
 
 // IsShaked 连接就绪(握手/认证...)
-func (this *agent) IsShaked() bool { return this.isShaked }
+func (this *agentBase) IsShaked() bool { return this.isShaked }
 
 // RecvNum 接收消息的数量
-func (this *agent) RecvNum() int64 { return this.recvNum }
+func (this *agentBase) RecvNum() int64 { return this.recvNum }
 
 // SendNum 发送消息的数量
-func (this *agent) SendNum() int64 { return this.sendNum }
+func (this *agentBase) SendNum() int64 { return this.sendNum }
 
 // GetSession 管理的ClientSession
-func (this *agent) GetSession() gate.Session { return this.session }
+func (this *agentBase) GetSession() gate.Session { return this.session }
 
 // ========== 处理发送
-func (this *agent) sendLoop() {
+func (this *agentBase) sendLoop() {
 	defer func() {
 		if err := recover(); err != nil {
 			buff := make([]byte, 1024)
@@ -157,7 +157,7 @@ func (this *agent) sendLoop() {
 }
 
 // 提供发送数据包的方法
-func (this *agent) SendPack(pack *gate.Pack) error {
+func (this *agentBase) SendPack(pack *gate.Pack) error {
 	if this.IsClosed() {
 		return nil
 	}
@@ -178,7 +178,7 @@ func (this *agent) SendPack(pack *gate.Pack) error {
 }
 
 // 处理编码Pack后的数据用于发送
-func (this *agent) OnWriteEncodingPack(pack *gate.Pack) []byte {
+func (this *agentBase) OnWriteEncodingPack(pack *gate.Pack) []byte {
 	// [普通不加密]
 	// headLen := gate.PACK_HEAD_TOTAL_LEN_SIZE + gate.PACK_HEAD_MSG_ID_LEN_SIZE
 	// totalLen := headLen + idLen + len(pack.Body)
@@ -218,7 +218,7 @@ func (this *agent) OnWriteEncodingPack(pack *gate.Pack) []byte {
 }
 
 // ========== 处理接收
-func (this *agent) recvLoop() error {
+func (this *agentBase) recvLoop() error {
 	defer func() {
 		if err := recover(); err != nil {
 			buff := make([]byte, 1024)
@@ -256,10 +256,12 @@ func (this *agent) recvLoop() error {
 }
 
 // 从连接中读取数据并解码出Pack
-func (this *agent) OnReadDecodingPack() (*gate.Pack, error) { return nil, fmt.Errorf("not impl func") }
+func (this *agentBase) OnReadDecodingPack() (*gate.Pack, error) {
+	return nil, fmt.Errorf("not impl func")
+}
 
 // 自行实现如何处理收到的数据包
-func (this *agent) OnHandRecvPack(pack *gate.Pack) error {
+func (this *agentBase) OnHandRecvPack(pack *gate.Pack) error {
 	// 处理保活(默认不处理保活,留给上层处理)
 
 	// 默认是通过topic解析出路由规则
@@ -289,6 +291,6 @@ func (this *agent) OnHandRecvPack(pack *gate.Pack) error {
 }
 
 // 获取最后发生的错误
-func (this *agent) GetError() error {
+func (this *agentBase) GetError() error {
 	return nil
 }

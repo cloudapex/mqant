@@ -53,6 +53,21 @@ type Pack struct {
 	Body  []byte
 }
 
+// Gate 网关代理定义
+type Gate interface {
+	module.IRPCModule
+
+	Options() Options
+
+	GetGateHandler() GateHandler
+	GetAgentLearner() AgentLearner
+	GetSessionLearner() SessionLearner
+	GetStorageHandler() StorageHandler
+	GetRouteHandler() RouteHandler
+	GetSendMessageHook() SendMessageHook
+	GetGuestJudger() func(session Session) bool
+}
+
 // GateHandler 代理服务处理器
 type GateHandler interface {
 	GetAgent(sessionId string) (Agent, error)
@@ -171,6 +186,37 @@ type Session interface {
 	ToClose() error
 }
 
+// Agent 客户端代理定义
+type Agent interface {
+	Init(impl Agent, gate Gate, conn network.Conn) error
+	Close()
+	OnClose() error
+	Destroy() // 不建议使用,优先使用Close
+
+	Run() (err error)
+
+	ConnTime() time.Time // 建立连接的时间
+	IsClosed() bool      // 连接状态
+	IsShaked() bool      // 连接就绪(有些协议会在连接成功后要先握手)
+	RecvNum() int64      // 接收消息的数量
+	SendNum() int64      // 发送消息的数量
+	GetSession() Session // 管理的ClientSession
+
+	// 发送数据
+	SendPack(pack *Pack) error
+
+	// 发送编码Pack后的数据
+	OnWriteEncodingPack(pack *Pack) []byte
+
+	// 读取数据并解码出Pack
+	OnReadDecodingPack() (*Pack, error)
+
+	// 自行实现如何处理收到的数据包
+	OnHandRecvPack(pack *Pack) error
+
+	GetError() error //连接断开的错误日志
+}
+
 // StorageHandler Session信息持久化
 type StorageHandler interface {
 	/**
@@ -215,50 +261,4 @@ type AgentLearner interface {
 type SessionLearner interface {
 	Connect(a Session)    //当连接建立  并且MQTT协议握手成功
 	DisConnect(a Session) //当连接关闭	或者客户端主动发送MQTT DisConnect命令
-}
-
-// Agent 客户端代理定义
-type Agent interface {
-	Init(impl Agent, gate Gate, conn network.Conn) error
-	Close()
-	OnClose() error
-	Destroy() // 不建议使用,优先使用Close
-
-	Run() (err error)
-
-	ConnTime() time.Time // 建立连接的时间
-	IsClosed() bool      // 连接状态
-	IsShaked() bool      // 连接就绪(有些协议会在连接成功后要先握手)
-	RecvNum() int64      // 接收消息的数量
-	SendNum() int64      // 发送消息的数量
-	GetSession() Session // 管理的ClientSession
-
-	// 发送数据
-	SendPack(pack *Pack) error
-
-	// 发送编码Pack后的数据
-	OnWriteEncodingPack(pack *Pack) []byte
-
-	// 读取数据并解码出Pack
-	OnReadDecodingPack() (*Pack, error)
-
-	// 自行实现如何处理收到的数据包
-	OnHandRecvPack(pack *Pack) error
-
-	GetError() error //连接断开的错误日志
-}
-
-// Gate 网关代理定义
-type Gate interface {
-	module.IRPCModule
-
-	Options() Options
-
-	GetGateHandler() GateHandler
-	GetAgentLearner() AgentLearner
-	GetSessionLearner() SessionLearner
-	GetStorageHandler() StorageHandler
-	GetRouteHandler() RouteHandler
-	GetSendMessageHook() SendMessageHook
-	GetGuestJudger() func(session Session) bool
 }

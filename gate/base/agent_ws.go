@@ -14,7 +14,7 @@ func NewWSAgent() gate.Agent {
 }
 
 type WSAgent struct {
-	agent
+	agentBase
 }
 
 // 读取数据并解码出Pack

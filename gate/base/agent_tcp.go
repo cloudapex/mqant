@@ -15,7 +15,7 @@ func NewTCPAgent() gate.Agent {
 }
 
 type TCPAgent struct {
-	agent
+	agentBase
 }
 
 // 读取数据并解码出Pack
