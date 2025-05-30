@@ -19,7 +19,7 @@ import (
 // 如随机到服务节点Hostname可以用modulus,cache,random等通用规则
 // 例如:
 // im://modulus/remove_feeds_member?msg_id=1002
-type FSelector func(session gate.Session, topic string, u *url.URL) (s module.IServerSession, err error)
+type FSelector func(session gate.ISession, topic string, u *url.URL) (s module.IServerSession, err error)
 
 // FDataParsing 指定数据解析函数
 // 返回值如bean！=nil err==nil则会向后端模块传入 func(session,bean)(result, error)
@@ -71,7 +71,7 @@ type URIRoute struct {
 }
 
 // OnRoute OnRoute
-func (u *URIRoute) OnRoute(session gate.Session, topic string, msg []byte) (bool, interface{}, error) {
+func (u *URIRoute) OnRoute(session gate.ISession, topic string, msg []byte) (bool, interface{}, error) {
 	needreturn := true
 	uu, err := url.Parse(topic)
 	if err != nil {

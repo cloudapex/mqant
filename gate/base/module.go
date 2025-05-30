@@ -31,10 +31,10 @@ type ModuleGate struct {
 
 	opts gate.Options
 
-	handler     gate.GateHandler                // 主代理接口
-	createAgent func(netTyp string) gate.Agent  // 创建客户端代理接口
-	guestJudger func(session gate.Session) bool // 是否游客
-	shakeHandle func(r *http.Request) error     // 建立连接时鉴权(ws)
+	handler     gate.GateHandler                 // 主代理接口
+	createAgent func(netTyp string) gate.IAgent  // 创建客户端代理接口
+	guestJudger func(session gate.ISession) bool // 是否游客
+	shakeHandle func(r *http.Request) error      // 建立连接时鉴权(ws)
 
 	storager        gate.StorageHandler  // Session持久化接口
 	router          gate.RouteHandler    // 路由控制接口
@@ -164,13 +164,13 @@ func (this *ModuleGate) Run(closeSig chan bool) {
 }
 
 // 设置创建客户端Agent的函数
-func (this *ModuleGate) SetAgentCreater(cfunc func(netTyp string) gate.Agent) error {
+func (this *ModuleGate) SetAgentCreater(cfunc func(netTyp string) gate.IAgent) error {
 	this.createAgent = cfunc
 	return nil
 }
 
 // 默认的创建客户端Agent的方法
-func (this *ModuleGate) defaultAgentCreater(netTyp string) gate.Agent {
+func (this *ModuleGate) defaultAgentCreater(netTyp string) gate.IAgent {
 	switch netTyp {
 	case "ws":
 		return NewWSAgent()
@@ -190,13 +190,13 @@ func (this *ModuleGate) setGateHandler(handler gate.GateHandler) error {
 func (this *ModuleGate) GetGateHandler() gate.GateHandler { return this.handler }
 
 // SetGuestJudger 设置是否游客的判定器
-func (this *ModuleGate) SetGuestJudger(judger func(session gate.Session) bool) error {
+func (this *ModuleGate) SetGuestJudger(judger func(session gate.ISession) bool) error {
 	this.guestJudger = judger
 	return nil
 }
 
 // GetGuestJudger 获取是否游客的判定器
-func (this *ModuleGate) GetGuestJudger() func(session gate.Session) bool { return this.guestJudger }
+func (this *ModuleGate) GetGuestJudger() func(session gate.ISession) bool { return this.guestJudger }
 
 // SetShakeHandler 设置建立连接时鉴权器(ws)
 func (this *ModuleGate) SetShakeHandler(handler func(r *http.Request) error) error {

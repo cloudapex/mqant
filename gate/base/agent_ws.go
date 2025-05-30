@@ -9,7 +9,7 @@ import (
 	"github.com/liangdas/mqant/mqtools/aes"
 )
 
-func NewWSAgent() gate.Agent {
+func NewWSAgent() gate.IAgent {
 	return &WSAgent{}
 }
 

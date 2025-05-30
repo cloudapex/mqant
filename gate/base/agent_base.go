@@ -18,9 +18,8 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"fmt"
-	"runtime"
 	"strings"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/liangdas/mqant/gate"
@@ -31,25 +30,24 @@ import (
 )
 
 type agentBase struct {
-	Impl gate.Agent
+	Impl gate.IAgent
 
-	gate                         gate.Gate
-	session                      gate.Session
-	conn                         network.Conn
-	r                            *bufio.Reader
-	w                            *bufio.Writer
-	ch                           chan int //控制模块可同时开启的最大协程数
-	isClosed                     bool
-	isShaked                     bool
-	lock                         sync.Mutex
-	lastStorageHeartbeatDataTime time.Duration //上一次发送存储心跳时间
-	recvNum                      int64
-	sendNum                      int64
-	connTime                     time.Time
-	sendPackChan                 chan *gate.Pack // 需要发送的消息缓存
+	gate         gate.IGate
+	session      gate.ISession
+	conn         network.Conn
+	r            *bufio.Reader
+	w            *bufio.Writer
+	ch           chan int        // 控制模块可同时开启的最大协程数(暂时没用)
+	sendPackChan chan *gate.Pack // 需要发送的消息缓存
+	isClosed     int32
+	isShaked     int32
+	recvNum      int64
+	sendNum      int64
+	connTime     time.Time
+	lastError    error
 }
 
-func (this *agentBase) Init(impl gate.Agent, gt gate.Gate, conn network.Conn) error {
+func (this *agentBase) Init(impl gate.IAgent, gt gate.IGate, conn network.Conn) error {
 	this.Impl = impl
 	this.ch = make(chan int, gt.Options().ConcurrentTasks)
 	this.conn = conn
@@ -57,12 +55,11 @@ func (this *agentBase) Init(impl gate.Agent, gt gate.Gate, conn network.Conn) er
 	this.r = bufio.NewReaderSize(conn, gt.Options().BufSize)
 	this.w = bufio.NewWriterSize(conn, gt.Options().BufSize)
 
-	this.isClosed = false
-	this.isShaked = false
+	this.isClosed = 0
+	this.isShaked = 0
 	this.recvNum = 0
 	this.sendNum = 0
 	this.sendPackChan = make(chan *gate.Pack, gt.Options().SendPackBuffNum)
-	this.lastStorageHeartbeatDataTime = time.Duration(time.Now().UnixNano())
 	return nil
 }
 func (this *agentBase) Close() {
@@ -73,38 +70,36 @@ func (this *agentBase) Close() {
 	}()
 }
 func (this *agentBase) OnClose() error {
-	this.isClosed = true
+	atomic.StoreInt32(&this.isClosed, 1)
 	close(this.sendPackChan)
 	this.gate.GetAgentLearner().DisConnect(this) //发送连接断开的事件
 	return nil
 }
-func (this *agentBase) Destroy() {
+func (this *agentBase) Destroy() { // 没用
 	if this.conn != nil {
 		this.conn.Destroy()
 	}
 }
 func (this *agentBase) Run() (err error) {
 	defer func() {
-		if err := recover(); err != nil {
-			buff := make([]byte, 1024)
-			runtime.Stack(buff, false)
-			log.Error("agent.recvLoop() panic(%v)\n info:%s", err, string(buff))
+		if err := mqtools.Catch(recover()); err != nil {
+			log.Error("agent.recvLoop() panic:%v", err)
 		}
 		this.Close()
 	}()
 
 	addr := this.conn.RemoteAddr()
 	this.session, err = NewSessionByMap(this.gate.GetApp(), map[string]interface{}{
-		"Sessionid": mqtools.GenerateID().String(),
-		"Network":   addr.Network(),
 		"IP":        addr.String(),
-		"Serverid":  this.gate.GetServerID(),
+		"Network":   addr.Network(),
+		"SessionId": mqtools.GenerateID().String(),
+		"ServerId":  this.gate.GetServerID(),
 		"Settings":  make(map[string]string),
 	})
 
-	this.session.UpdTraceSpan() //代码跟踪
+	this.session.UpdTraceSpan() // 代码跟踪
 	this.connTime = time.Now()
-	this.isShaked = true
+	this.isShaked = 1
 	this.gate.GetAgentLearner().Connect(this) //发送连接成功的事件
 
 	log.Info("gate create agent sessionId:%s, current gate agents num:%d", this.session.GetSessionID(), this.gate.GetGateHandler().GetAgentNum())
@@ -119,36 +114,35 @@ func (this *agentBase) Run() (err error) {
 func (this *agentBase) ConnTime() time.Time { return this.connTime }
 
 // IsClosed 是否关闭了
-func (this *agentBase) IsClosed() bool { return this.isClosed }
+func (this *agentBase) IsClosed() bool { return atomic.LoadInt32(&this.isClosed) == 1 }
 
 // IsShaked 连接就绪(握手/认证...)
-func (this *agentBase) IsShaked() bool { return this.isShaked }
+func (this *agentBase) IsShaked() bool { return this.isShaked == 1 }
 
 // RecvNum 接收消息的数量
-func (this *agentBase) RecvNum() int64 { return this.recvNum }
+func (this *agentBase) RecvNum() int64 { return atomic.LoadInt64(&this.recvNum) }
 
 // SendNum 发送消息的数量
-func (this *agentBase) SendNum() int64 { return this.sendNum }
+func (this *agentBase) SendNum() int64 { return atomic.LoadInt64(&this.sendNum) }
 
 // GetSession 管理的ClientSession
-func (this *agentBase) GetSession() gate.Session { return this.session }
+func (this *agentBase) GetSession() gate.ISession { return this.session }
 
 // ========== 处理发送
 func (this *agentBase) sendLoop() {
 	defer func() {
-		if err := recover(); err != nil {
-			buff := make([]byte, 1024)
-			runtime.Stack(buff, false)
-			log.Error("agent.sendLoop() panic(%v)\n info:%s", err, string(buff))
+		if err := mqtools.Catch(recover()); err != nil {
+			log.Error("agent.sendLoop() panic:%v")
 		}
 		this.Close()
 	}()
 
 	for pack := range this.sendPackChan {
-		this.sendNum++
+		atomic.AddInt64(&this.sendNum, 1)
 		sendData := this.Impl.OnWriteEncodingPack(pack)
 		this.conn.SetWriteDeadline(time.Now().Add(30 * time.Second))
 		if _, err := this.conn.Write(sendData); err != nil {
+			this.lastError = err
 			log.Error("sendLoop, userId:%v sessionId:%v topic:%v dataLen:%v, err:%v", this.session.GetUserID(), this.session.GetSessionID(), pack.Topic, len(sendData), err)
 		} else {
 			log.Debug("sendLoop, userId:%v sessionId:%v topic:%v dataLen:%v ok.", this.session.GetUserID(), this.session.GetSessionID(), pack.Topic, len(sendData))
@@ -156,7 +150,7 @@ func (this *agentBase) sendLoop() {
 	}
 }
 
-// 提供发送数据包的方法
+// SendPack 提供发送数据包的方法
 func (this *agentBase) SendPack(pack *gate.Pack) error {
 	if this.IsClosed() {
 		return nil
@@ -177,7 +171,104 @@ func (this *agentBase) SendPack(pack *gate.Pack) error {
 	}
 }
 
-// 处理编码Pack后的数据用于发送
+// ========== 处理接收
+func (this *agentBase) recvLoop() error {
+	heartOverTime := this.gate.Options().HeartOverTimer
+	for {
+		nowTime := time.Now()
+		if heartOverTime > 0 {
+			_ = this.conn.SetReadDeadline(nowTime.Add(heartOverTime))
+		}
+		// this.recvWait()
+		pack, err := this.Impl.OnReadDecodingPack()
+		if err != nil {
+			if heartOverTime > 0 && time.Since(nowTime) >= (heartOverTime) {
+				log.Error("recvLoop heartOverTime, userId:%v sessionId:%v", this.session.GetSessionID(), this.session.GetUserID())
+			} else {
+				log.Error("recvLoop heartOverTime, userId:%v sessionId:%v err:%s", this.session.GetSessionID(), this.session.GetUserID(), err.Error())
+			}
+			this.lastError = err
+			return err
+		}
+
+		if pack == nil {
+			continue
+		}
+		atomic.AddInt64(&this.recvNum, 1)
+		if route := this.gate.GetRouteHandler(); route != nil {
+			done, err := route.OnRoute(this.GetSession(), pack.Topic, pack.Body)
+			if err != nil {
+				this.lastError = err
+				return err
+			}
+			if done {
+				continue
+			}
+		}
+		if err := this.OnHandRecvPack(pack); err != nil {
+			this.lastError = err
+			return err
+		}
+		log.Debug("recvLoop, userId:%v sessionId:%v topic:%v dataLen:%v ok.", this.session.GetUserID(), this.session.GetSessionID(), pack.Topic, len(pack.Body))
+	}
+}
+func (this *agentBase) recvWait() error {
+	// 如果ch满了则会处于阻塞，从而达到限制最大协程的功能
+	select {
+	case this.ch <- 1:
+	}
+	return nil
+}
+
+func (this *agentBase) recvFinish() {
+	// 完成则从ch推出数据
+	select {
+	case <-this.ch:
+	default:
+	}
+}
+
+// 自行实现如何处理收到的数据包
+func (this *agentBase) OnHandRecvPack(pack *gate.Pack) error {
+	// 处理保活(默认不处理保活,留给上层处理)
+
+	// 默认是通过topic解析出路由规则
+	topic := strings.Split(pack.Topic, "/")
+	if len(topic) < 2 {
+		return fmt.Errorf("pack.Topic resolving faild with:%v", pack.Topic)
+	}
+	moduleTyp, msgId := topic[0], topic[1]
+
+	// 优先在已绑定的Module中提供服务
+	serverId, _ := this.session.Get(moduleTyp)
+	if serverId != "" {
+		if server, _ := this.gate.GetApp().GetServerByID(serverId); server != nil {
+			_, err := server.Call(this.session.GenRPCContext(), gate.RPC_CLIENT_MSG, msgId, pack.Body)
+			return err
+		}
+	}
+
+	// 然后按照默认路由规则随机取得Module服务
+	server, err := this.gate.GetApp().GetRouteServer(moduleTyp)
+	if err != nil {
+		return fmt.Errorf("Service(moduleType:%s) not found", moduleTyp)
+	}
+
+	_, err = server.Call(this.session.GenRPCContext(), gate.RPC_CLIENT_MSG, msgId, pack.Body)
+	return err
+}
+
+// 获取最后发生的错误
+func (this *agentBase) GetError() error {
+	if !this.IsClosed() {
+		return nil
+	}
+	return this.lastError
+}
+
+// ========== Pack编码默认实现
+
+// OnWriteEncodingPack 处理编码Pack后的数据用于发送
 func (this *agentBase) OnWriteEncodingPack(pack *gate.Pack) []byte {
 	// [普通不加密]
 	// headLen := gate.PACK_HEAD_TOTAL_LEN_SIZE + gate.PACK_HEAD_MSG_ID_LEN_SIZE
@@ -217,80 +308,7 @@ func (this *agentBase) OnWriteEncodingPack(pack *gate.Pack) []byte {
 	return sendData
 }
 
-// ========== 处理接收
-func (this *agentBase) recvLoop() error {
-	defer func() {
-		if err := recover(); err != nil {
-			buff := make([]byte, 1024)
-			runtime.Stack(buff, false)
-			log.Error("agent.recvLoop() panic(%v)\n info:%s", err, string(buff))
-		}
-		this.Close()
-	}()
-
-	heartOverTime := this.gate.Options().HeartOverTimer
-	for {
-		nowTime := time.Now()
-		if heartOverTime > 0 {
-			_ = this.conn.SetReadDeadline(nowTime.Add(heartOverTime))
-		}
-		pack, err := this.Impl.OnReadDecodingPack()
-		if err != nil {
-			if heartOverTime > 0 && time.Since(nowTime) >= (heartOverTime) {
-				log.Error("recvLoop heartOverTime, userId:%v sessionId:%v", this.session.GetSessionID(), this.session.GetUserID())
-			} else {
-				log.Error("recvLoop heartOverTime, userId:%v sessionId:%v err:%s", this.session.GetSessionID(), this.session.GetUserID(), err.Error())
-			}
-			return err
-		}
-
-		if pack == nil {
-			continue
-		}
-		// todo: 把心跳业务放到这里
-		if err := this.OnHandRecvPack(pack); err != nil {
-			return err
-		}
-		log.Debug("recvLoop, userId:%v sessionId:%v topic:%v dataLen:%v ok.", this.session.GetUserID(), this.session.GetSessionID(), pack.Topic, len(pack.Body))
-	}
-}
-
-// 从连接中读取数据并解码出Pack
+// OnReadDecodingPack 从连接中读取数据并解码出Pack
 func (this *agentBase) OnReadDecodingPack() (*gate.Pack, error) {
-	return nil, fmt.Errorf("not impl func")
-}
-
-// 自行实现如何处理收到的数据包
-func (this *agentBase) OnHandRecvPack(pack *gate.Pack) error {
-	// 处理保活(默认不处理保活,留给上层处理)
-
-	// 默认是通过topic解析出路由规则
-	topic := strings.Split(pack.Topic, "/")
-	if len(topic) < 2 {
-		return fmt.Errorf("pack.Topic resolving faild with:%v", pack.Topic)
-	}
-	moduleTyp, msgId := topic[0], topic[1]
-
-	// 优先在已绑定的Module中提供服务
-	serverId, _ := this.session.Get(moduleTyp)
-	if serverId != "" {
-		if server, _ := this.gate.GetApp().GetServerByID(serverId); server != nil {
-			_, err := server.Call(this.session.GenRPCContext(), gate.RPC_CLIENT_MSG, msgId, pack.Body)
-			return err
-		}
-	}
-
-	// 然后按照默认路由规则随机取得Module服务
-	server, err := this.gate.GetApp().GetRouteServer(moduleTyp)
-	if err != nil {
-		return fmt.Errorf("Service(moduleType:%s) not found", moduleTyp)
-	}
-
-	_, err = server.Call(this.session.GenRPCContext(), gate.RPC_CLIENT_MSG, msgId, pack.Body)
-	return err
-}
-
-// 获取最后发生的错误
-func (this *agentBase) GetError() error {
-	return nil
+	panic("agentBase: OnReadDecodingPack() must be implemented")
 }

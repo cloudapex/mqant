@@ -26,7 +26,7 @@ func (handler *WSHandler) work(conn *websocket.Conn, r *http.Request) {
 	defer handler.wg.Done()
 
 	wsConn := newWSConn(conn, r)
-	agent := handler.newAgent(wsConn)
+	agent := handler.newAgent(wsConn) // Run and OnClose
 	agent.Run()
 
 	// cleanup

@@ -10,7 +10,7 @@ import (
 	"github.com/liangdas/mqant/mqtools/aes"
 )
 
-func NewTCPAgent() gate.Agent {
+func NewTCPAgent() gate.IAgent {
 	return &TCPAgent{}
 }
 

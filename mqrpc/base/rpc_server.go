@@ -243,6 +243,7 @@ func (s *RPCServer) _runFunc(start time.Time, functionInfo *mqrpc.FunctionInfo, 
 
 	//t:=RandInt64(2,3)
 	//time.Sleep(time.Second*time.Duration(t))
+	traceSpan := (log.TraceSpan)(nil)
 	// f 为函数地址
 	var in []reflect.Value
 	var input []interface{}
@@ -277,7 +278,8 @@ func (s *RPCServer) _runFunc(start time.Time, functionInfo *mqrpc.FunctionInfo, 
 							needSet.SetApp(s.app)
 						}
 						if traceSpan, ok := v.(log.TraceSpan); ok {
-							_v = traceSpan.ExtractSpan()
+							traceSpan = traceSpan.ExtractSpan()
+							_v = traceSpan //
 						}
 						ctx = context.WithValue(ctx, k, _v)
 					}
@@ -387,7 +389,7 @@ func (s *RPCServer) _runFunc(start time.Time, functionInfo *mqrpc.FunctionInfo, 
 	callInfo.ExecTime = time.Since(start).Nanoseconds()
 	s.doCallback(callInfo)
 	if s.app.Config().RpcLog {
-		log.TInfo(nil, "rpc Exec ModuleType = %v Func = %v Elapsed = %v", s.module.GetType(), callInfo.RPCInfo.Fn, time.Since(start))
+		log.TInfo(traceSpan, "rpc Exec ModuleType = %v Func = %v Elapsed = %v", s.module.GetType(), callInfo.RPCInfo.Fn, time.Since(start))
 	}
 	if s.listener != nil {
 		s.listener.OnComplete(callInfo.RPCInfo.Fn, callInfo, resultInfo, time.Since(start).Nanoseconds())

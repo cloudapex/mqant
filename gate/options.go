@@ -37,7 +37,7 @@ type Options struct {
 	KeyFile         string
 	EncryptKey      string        // 消息包加密key
 	OverTime        time.Duration // 建立连接超时(10s)
-	HeartOverTimer  time.Duration // 心跳超时时间(60s)
+	HeartOverTimer  time.Duration // 心跳超时时间(本质是读取超时)(60s)
 
 	Opts []server.Option // 用来控制Module属性的
 }

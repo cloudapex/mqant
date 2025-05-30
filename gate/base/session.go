@@ -37,12 +37,12 @@ func init() {
 }
 
 // NewSession NewSession
-func NewSession(app module.IApp, data []byte) (gate.Session, error) {
+func NewSession(app module.IApp, data []byte) (gate.ISession, error) {
 	agent := &sessionAgent{
 		app:  app,
 		lock: new(sync.RWMutex),
 	}
-	err := agent.initByPB(data)
+	err := agent.initByDat(data)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +53,7 @@ func NewSession(app module.IApp, data []byte) (gate.Session, error) {
 }
 
 // NewSessionByMap NewSessionByMap
-func NewSessionByMap(app module.IApp, data map[string]interface{}) (gate.Session, error) {
+func NewSessionByMap(app module.IApp, data map[string]interface{}) (gate.ISession, error) {
 	agent := &sessionAgent{
 		app:     app,
 		session: new(SessionImp),
@@ -70,14 +70,14 @@ func NewSessionByMap(app module.IApp, data map[string]interface{}) (gate.Session
 }
 
 type sessionAgent struct {
-	app         module.IApp
-	session     *SessionImp
-	lock        *sync.RWMutex
-	userdata    interface{}
-	guestJudger func(session gate.Session) bool
+	app      module.IApp
+	session  *SessionImp
+	lock     *sync.RWMutex // for session.UserId and session.Setting
+	userdata interface{}
+	// guestJudger func(session gate.ISession) bool
 }
 
-func (s *sessionAgent) initByPB(data []byte) error {
+func (s *sessionAgent) initByDat(data []byte) error {
 	se := &SessionImp{}
 	err := proto.Unmarshal(data, se)
 	if err != nil {
@@ -125,25 +125,23 @@ func (s *sessionAgent) GetApp() module.IApp {
 func (s *sessionAgent) SetApp(app module.IApp) {
 	s.app = app
 }
-func (s *sessionAgent) GetIP() string {
-	return s.session.IP
-}
-func (s *sessionAgent) SetIP(ip string) {
-	s.session.IP = ip
-}
-func (s *sessionAgent) GetTopic() string {
-	return s.session.Topic
-}
-func (s *sessionAgent) SetTopic(topic string) {
-	s.session.Topic = topic
-}
-func (s *sessionAgent) GetNetwork() string {
-	return s.session.Network
-}
-func (s *sessionAgent) SetNetwork(network string) {
-	s.session.Network = network
-}
+
+func (s *sessionAgent) GetIP() string                     { return s.session.IP }
+func (s *sessionAgent) SetIP(ip string)                   { s.session.IP = ip }
+func (s *sessionAgent) GetTopic() string                  { return s.session.Topic }
+func (s *sessionAgent) SetTopic(topic string)             { s.session.Topic = topic }
+func (s *sessionAgent) GetNetwork() string                { return s.session.Network }
+func (s *sessionAgent) SetNetwork(network string)         { s.session.Network = network }
+func (s *sessionAgent) GetSessionID() string              { return s.session.SessionId }
+func (s *sessionAgent) SetSessionID(sessionId string)     { s.session.SessionId = sessionId }
+func (s *sessionAgent) GetServerID() string               { return s.session.ServerId }
+func (s *sessionAgent) SetServerID(serverId string)       { s.session.ServerId = serverId }
+func (s *sessionAgent) GetLocalUserData() interface{}     { return s.userdata }
+func (s *sessionAgent) SetLocalUserData(data interface{}) { s.userdata = data }
+
 func (s *sessionAgent) GetUserID() string {
+	s.lock.Lock()
+	defer s.lock.Unlock()
 	return s.session.UserId
 }
 func (s *sessionAgent) GetUserIDInt64() int64 {
@@ -157,24 +155,6 @@ func (s *sessionAgent) SetUserID(userId string) {
 	s.lock.Lock()
 	s.session.UserId = userId
 	s.lock.Unlock()
-}
-func (s *sessionAgent) GetSessionID() string {
-	return s.session.SessionId
-}
-func (s *sessionAgent) SetSessionID(sessionId string) {
-	s.session.SessionId = sessionId
-}
-func (s *sessionAgent) GetServerID() string {
-	return s.session.ServerId
-}
-func (s *sessionAgent) SetServerID(serverId string) {
-	s.session.ServerId = serverId
-}
-func (s *sessionAgent) GetLocalUserData() interface{} {
-	return s.userdata
-}
-func (s *sessionAgent) SetLocalUserData(data interface{}) {
-	s.userdata = data
 }
 func (s *sessionAgent) Get(key string) (string, bool) {
 	s.lock.RLock()
@@ -223,6 +203,8 @@ func (s *sessionAgent) ImportSettings(settings map[string]string) error {
 	s.lock.Unlock()
 	return nil
 }
+
+// SettingsRange 安全遍历Settings
 func (s *sessionAgent) SettingsRange(f func(k, v string) bool) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -237,24 +219,24 @@ func (s *sessionAgent) SettingsRange(f func(k, v string) bool) {
 	}
 }
 
-// update 更新为新的session数据
-func (s *sessionAgent) update(session gate.Session) error {
-	userId := session.GetUserID()
-	s.session.UserId = userId
+// update 更新为新的session数据(只更新Settings数据)
+func (s *sessionAgent) update(session gate.ISession) error {
+	// userId := session.GetUserID()
+	// s.session.UserId = userId
 
-	ip := session.GetIP()
-	s.session.IP = ip
+	// ip := session.GetIP()
+	// s.session.IP = ip
 
-	s.session.Topic = session.GetTopic()
+	// s.session.Topic = session.GetTopic()
 
-	network := session.GetNetwork()
-	s.session.Network = network
+	// network := session.GetNetwork()
+	// s.session.Network = network
 
-	sessionid := session.GetSessionID()
-	s.session.SessionId = sessionid
+	// sessionId := session.GetSessionID()
+	// s.session.SessionId = sessionId
 
-	serverid := session.GetServerID()
-	s.session.ServerId = serverid
+	// serverid := session.GetServerID()
+	// s.session.ServerId = serverid
 
 	settings := map[string]string{}
 	session.SettingsRange(func(k, v string) bool {
@@ -267,8 +249,8 @@ func (s *sessionAgent) update(session gate.Session) error {
 	return nil
 }
 
-// 每次rpc调用都拷贝一份新的Session进行传输
-func (s *sessionAgent) Clone() gate.Session {
+// Clone 每次rpc调用都拷贝一份新的Session进行传输
+func (s *sessionAgent) Clone() gate.ISession {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	tmp := map[string]string{}
@@ -293,18 +275,19 @@ func (s *sessionAgent) Clone() gate.Session {
 	return agent
 }
 
-// 只Clone Settings
+// CloneSettings 只Clone Settings
 func (s *sessionAgent) CloneSettings() map[string]string {
+	tmp := map[string]string{}
+
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	tmp := map[string]string{}
 	for k, v := range s.session.Settings {
 		tmp[k] = v
 	}
 	return tmp
 }
 
-// 是否是访客(未登录), 默认判断规则为(userId=="")
+// IsGuest 是否是访客(未登录), 默认判断规则为(userId=="")
 func (s *sessionAgent) IsGuest() bool {
 	if s.GetUserID() == "" {
 		return true
@@ -312,7 +295,7 @@ func (s *sessionAgent) IsGuest() bool {
 	return false
 }
 
-// 生成RPC方法需要的context
+// GenRPCContext 生成RPC方法需要的context
 func (s *sessionAgent) GenRPCContext() context.Context {
 	ctx := context.Background()
 	return mqrpc.ContextWithTrace(gate.ContextWithSession(ctx, s), s.GetTraceSpan())
@@ -329,21 +312,21 @@ func (s *sessionAgent) GetTraceSpan() log.TraceSpan {
 
 // ========== Session RPC方法封装
 
-// 更新本地Session(其他Module从Gate拉取最新数据)
+// update local Session(从Gate拉取最新数据)
 func (s *sessionAgent) ToUpdate() error {
 	if s.app == nil {
-		return fmt.Errorf("Module.App is nil")
+		return fmt.Errorf("SessionAgent.App is nil")
 	}
 	server, err := s.app.GetServerByID(s.session.ServerId)
 	if err != nil {
 		return fmt.Errorf("Gate not found serverId(%s), err:%v", s.session.ServerId, err)
 	}
-	result, err := server.Call(mqrpc.ContextWithTrace(context.Background(), s.GetTraceSpan()), "Load", s.session.SessionId)
+	result, err := server.Call(context.TODO(), "Load", s.session.SessionId)
 	if err != nil {
-		return fmt.Errorf("Call Gate serverId(%v) 'Update' err:%v", s.session.ServerId, err)
+		return fmt.Errorf("Call Gate serverId(%v) 'Load' err:%v", s.session.ServerId, err)
 	}
 	if result != nil { // 重新更新当前Session
-		s.update(result.(gate.Session))
+		s.update(result.(gate.ISession))
 	}
 	return nil
 }
@@ -351,18 +334,18 @@ func (s *sessionAgent) ToUpdate() error {
 // Bind the session with the the userId.
 func (s *sessionAgent) ToBind(userId string) error {
 	if s.app == nil {
-		return fmt.Errorf("Module.App is nil")
+		return fmt.Errorf("SessionAgent.App is nil")
 	}
-	server, e := s.app.GetServerByID(s.session.ServerId)
-	if e != nil {
-		return fmt.Errorf("Service not found id(%s)", s.session.ServerId)
+	server, err := s.app.GetServerByID(s.session.ServerId)
+	if err != nil {
+		return fmt.Errorf("Gate not found serverId(%s), err:%v", s.session.ServerId, err)
 	}
-	result, err := server.Call(mqrpc.ContextWithTrace(context.Background(), s.GetTraceSpan()), "Bind", s.session.SessionId, userId)
+	result, err := server.Call(context.TODO(), "Bind", s.session.SessionId, userId)
 	if err != nil {
 		return fmt.Errorf("Call Gate serverId(%v) 'Bind' err:%v", s.session.ServerId, err)
 	}
 	if result != nil { // 绑定成功,重新更新当前Session
-		s.update(result.(gate.Session))
+		s.update(result.(gate.ISession))
 	}
 	return nil
 }
@@ -370,43 +353,18 @@ func (s *sessionAgent) ToBind(userId string) error {
 // UnBind the session with the the userId.
 func (s *sessionAgent) ToUnBind() error {
 	if s.app == nil {
-		return fmt.Errorf("Module.App is nil")
+		return fmt.Errorf("SessionAgent.App is nil")
 	}
-	server, e := s.app.GetServerByID(s.session.ServerId)
-	if e != nil {
-		return fmt.Errorf("Service not found id(%s)", s.session.ServerId)
+	server, err := s.app.GetServerByID(s.session.ServerId)
+	if err != nil {
+		return fmt.Errorf("Gate not found serverId(%s), err:%v", s.session.ServerId, err)
 	}
-	result, err := server.Call(mqrpc.ContextWithTrace(context.Background(), s.GetTraceSpan()), "UnBind", s.session.SessionId)
+	result, err := server.Call(context.TODO(), "UnBind", s.session.SessionId)
 	if err != nil {
 		return fmt.Errorf("Call Gate serverId(%v) 'UnBind' err:%v", s.session.ServerId, err)
 	}
 	if result != nil { // 绑定成功,重新更新当前Session
-		s.update(result.(gate.Session))
-	}
-	return nil
-}
-
-// Push all Settings values for the session.
-func (s *sessionAgent) ToPush() error {
-	if s.app == nil {
-		return fmt.Errorf("Module.App is nil")
-	}
-	server, e := s.app.GetServerByID(s.session.ServerId)
-	if e != nil {
-		return fmt.Errorf("Service not found id(%s)", s.session.ServerId)
-	}
-	s.lock.Lock()
-	tmp := map[string]string{}
-	for k, v := range s.session.Settings {
-		tmp[k] = v
-	}
-	s.lock.Unlock()
-	result, err := server.Call(mqrpc.ContextWithTrace(context.Background(), s.GetTraceSpan()), "Push", s.session.SessionId, tmp)
-	if err != nil {
-		return fmt.Errorf("Call Gate serverId(%v) 'Push' err:%v", s.session.ServerId, err)
-	}
-	if result != nil { // 绑定成功,重新更新当前Session
-		s.update(result.(gate.Session))
+		s.update(result.(gate.ISession))
 	}
 	return nil
 }
@@ -414,38 +372,63 @@ func (s *sessionAgent) ToPush() error {
 // Set values (one) for the session.
 func (s *sessionAgent) ToSet(key string, value string) error {
 	if s.app == nil {
-		return fmt.Errorf("Module.App is nil")
+		return fmt.Errorf("SessionAgent.App is nil")
 	}
-	server, e := s.app.GetServerByID(s.session.ServerId)
-	if e != nil {
-		return fmt.Errorf("Service not found id(%s)", s.session.ServerId)
+	server, err := s.app.GetServerByID(s.session.ServerId)
+	if err != nil {
+		return fmt.Errorf("Gate not found serverId(%s), err:%v", s.session.ServerId, err)
 	}
 
-	result, err := server.Call(mqrpc.ContextWithTrace(context.Background(), s.GetTraceSpan()), "Set", s.session.SessionId, s.session.SessionId, key, value)
+	result, err := server.Call(context.TODO(), "Set", s.session.SessionId, s.session.SessionId, key, value)
 	if err != nil {
 		return fmt.Errorf("Call Gate serverId(%v) 'Set' err:%v", s.session.ServerId, err)
 	}
 	if result != nil { // 绑定成功,重新更新当前Session
-		s.update(result.(gate.Session))
+		s.update(result.(gate.ISession))
 	}
 	return nil
 }
 
-// Set values (many) for the session.
+// Set values (many) for the session(直接用参数Push).
 func (s *sessionAgent) ToSetBatch(settings map[string]string) error {
 	if s.app == nil {
-		return fmt.Errorf("Module.App is nil")
+		return fmt.Errorf("SessionAgent.App is nil")
 	}
-	server, e := s.app.GetServerByID(s.session.ServerId)
-	if e != nil {
-		return fmt.Errorf("Service not found id(%s)", s.session.ServerId)
+	server, err := s.app.GetServerByID(s.session.ServerId)
+	if err != nil {
+		return fmt.Errorf("Gate not found serverId(%s), err:%v", s.session.ServerId, err)
 	}
-	result, err := server.Call(mqrpc.ContextWithTrace(context.Background(), s.GetTraceSpan()), "Push", s.session.SessionId, settings)
+	result, err := server.Call(context.TODO(), "Push", s.session.SessionId, settings)
 	if err != nil {
 		return fmt.Errorf("Call Gate serverId(%v) 'Push' err:%v", s.session.ServerId, err)
 	}
 	if result != nil { // 绑定成功,重新更新当前Session
-		s.update(result.(gate.Session))
+		s.update(result.(gate.ISession))
+	}
+	return nil
+}
+
+// Push all Settings values for the session(拿自己的Settings去Push).
+func (s *sessionAgent) ToPush() error {
+	if s.app == nil {
+		return fmt.Errorf("SessionAgent.App is nil")
+	}
+	server, err := s.app.GetServerByID(s.session.ServerId)
+	if err != nil {
+		return fmt.Errorf("Gate not found serverId(%s), err:%v", s.session.ServerId, err)
+	}
+	tmp := map[string]string{}
+	s.lock.Lock()
+	for k, v := range s.session.Settings {
+		tmp[k] = v
+	}
+	s.lock.Unlock()
+	result, err := server.Call(context.TODO(), "Push", s.session.SessionId, tmp)
+	if err != nil {
+		return fmt.Errorf("Call Gate serverId(%v) 'Push' err:%v", s.session.ServerId, err)
+	}
+	if result != nil { // 绑定成功,重新更新当前Session
+		s.update(result.(gate.ISession))
 	}
 	return nil
 }
@@ -453,18 +436,18 @@ func (s *sessionAgent) ToSetBatch(settings map[string]string) error {
 // Remove value from the session.
 func (s *sessionAgent) ToDel(key string) error {
 	if s.app == nil {
-		return fmt.Errorf("Module.App is nil")
+		return fmt.Errorf("SessionAgent.App is nil")
 	}
-	server, e := s.app.GetServerByID(s.session.ServerId)
-	if e != nil {
-		return fmt.Errorf("Service not found id(%s)", s.session.ServerId)
+	server, err := s.app.GetServerByID(s.session.ServerId)
+	if err != nil {
+		return fmt.Errorf("Gate not found serverId(%s), err:%v", s.session.ServerId, err)
 	}
-	result, err := server.Call(mqrpc.ContextWithTrace(context.Background(), s.GetTraceSpan()), "Del", s.session.SessionId, key)
+	result, err := server.Call(context.TODO(), "Del", s.session.SessionId, key)
 	if err != nil {
 		return fmt.Errorf("Call Gate serverId(%v) 'Remove' err:%v", s.session.ServerId, err)
 	}
 	if result != nil { // 绑定成功,重新更新当前Session
-		s.update(result.(gate.Session))
+		s.update(result.(gate.ISession))
 	}
 	return nil
 }
@@ -472,38 +455,38 @@ func (s *sessionAgent) ToDel(key string) error {
 // Send message to the session.
 func (s *sessionAgent) ToSend(topic string, body []byte) error {
 	if s.app == nil {
-		return fmt.Errorf("Module.App is nil")
+		return fmt.Errorf("SessionAgent.App is nil")
 	}
-	server, e := s.app.GetServerByID(s.session.ServerId)
-	if e != nil {
-		return fmt.Errorf("Service not found id(%s)", s.session.ServerId)
+	server, err := s.app.GetServerByID(s.session.ServerId)
+	if err != nil {
+		return fmt.Errorf("Gate not found serverId(%s), err:%v", s.session.ServerId, err)
 	}
-	return server.CallNR(mqrpc.ContextWithTrace(context.Background(), s.GetTraceSpan()), "Send", s.session.SessionId, topic, body)
+	return server.CallNR(context.TODO(), "Send", s.session.SessionId, topic, body)
 }
 
 // the session is connect status
 func (s *sessionAgent) ToConnected() (bool, error) {
 	if s.app == nil {
-		return false, fmt.Errorf("Module.App is nil")
+		return false, fmt.Errorf("SessionAgent.App is nil")
 	}
-	server, e := s.app.GetServerByID(s.session.ServerId)
-	if e != nil {
-		return false, fmt.Errorf("Service not found id(%s)", s.session.ServerId)
+	server, err := s.app.GetServerByID(s.session.ServerId)
+	if err != nil {
+		return false, fmt.Errorf("Gate not found serverId(%s), err:%v", s.session.ServerId, err)
 	}
-	result, err := server.Call(mqrpc.ContextWithTrace(context.Background(), s.GetTraceSpan()), "Connected", s.session.SessionId)
+	result, err := server.Call(context.TODO(), "Connected", s.session.SessionId)
 	return result.(bool), err
 }
 
 // Close the session connect
 func (s *sessionAgent) ToClose() error {
 	if s.app == nil {
-		return fmt.Errorf("Module.App is nil")
+		return fmt.Errorf("SessionAgent.App is nil")
 	}
 	server, err := s.app.GetServerByID(s.session.ServerId)
 	if err != nil {
-		return fmt.Errorf("Service not found id(%s), err:%v", s.session.ServerId, err)
+		return fmt.Errorf("Gate not found serverId(%s), err:%v", s.session.ServerId, err)
 	}
-	return server.CallNR(mqrpc.ContextWithTrace(context.Background(), s.GetTraceSpan()), "Close", s.session.SessionId)
+	return server.CallNR(context.TODO(), "Close", s.session.SessionId)
 }
 
 // ========== mqrpc.Marshaler 接口
