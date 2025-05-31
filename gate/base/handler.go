@@ -149,13 +149,8 @@ func (this *handler) OnRpcBind(ctx context.Context, sessionId string, userId str
 			// 有已持久化的数据,可能是上一次连接保存的
 			impSession, err := NewSession(this.gate.GetApp(), data)
 			if err == nil {
-				if agent.(gate.IAgent).GetSession() == nil {
-					agent.(gate.IAgent).GetSession().SetSettings(impSession.CloneSettings())
-				} else {
-					// 合并两个map 并且以 agent.(Agent).GetSession().Settings 已有的优先
-					settings := impSession.CloneSettings()
-					_ = agent.(gate.IAgent).GetSession().ImportSettings(settings)
-				}
+				// 合并两个map 并且以 agent.(Agent).GetSession().Settings 已有的优先
+				agent.(gate.IAgent).GetSession().SetSettings(impSession.CloneSettings())
 			} else {
 				// 解析持久化数据失败
 				log.Warning("Sesssion Resolve fail %s", err.Error())
