@@ -23,12 +23,12 @@ import (
 	"github.com/liangdas/mqant/conf"
 	"github.com/liangdas/mqant/log"
 	"github.com/liangdas/mqant/module"
+	"github.com/liangdas/mqant/module/server"
+	"github.com/liangdas/mqant/module/service"
 	"github.com/liangdas/mqant/mqrpc"
 	rpcpb "github.com/liangdas/mqant/mqrpc/pb"
 	"github.com/liangdas/mqant/mqtools"
 	"github.com/liangdas/mqant/selector"
-	"github.com/liangdas/mqant/server"
-	"github.com/liangdas/mqant/service"
 	"github.com/pkg/errors"
 )
 

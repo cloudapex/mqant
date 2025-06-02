@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/liangdas/mqant/log"
-	"github.com/liangdas/mqant/server"
+	"github.com/liangdas/mqant/module/server"
 )
 
 // NewService NewService

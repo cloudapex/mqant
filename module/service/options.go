@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/liangdas/mqant/server"
+	"github.com/liangdas/mqant/module/server"
 )
 
 // Service Service
