@@ -25,14 +25,14 @@ import (
 
 type ContextTransKey string
 
-var contextTransValues = map[ContextTransKey]func() Marshaler{
+var registedContextTransfer = map[ContextTransKey]func() Marshaler{
 	// 默认注册log.TraceSpanImp
 	ContextTransTrace: func() Marshaler { return &log.TraceSpanImp{} },
 }
 
 // 把需要通过Context进行RPC传输的KV注册进来
 func RegistContextTransValue(key ContextTransKey, makeFun func() Marshaler) {
-	contextTransValues[key] = makeFun
+	registedContextTransfer[key] = makeFun
 }
 
 // 定义需要RPC传输TraceSpan的ContextKey

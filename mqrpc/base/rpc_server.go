@@ -274,7 +274,7 @@ func (s *RPCServer) _runFunc(start time.Time, functionInfo *mqrpc.FunctionInfo, 
 				if kvs, ok := ret.(map[mqrpc.ContextTransKey]interface{}); ok {
 					for k, v := range kvs {
 						_v := v
-						if needSet, ok := v.(module.CtxSessionSetApp); ok {
+						if needSet, ok := v.(module.ICtxTransSetApp); ok {
 							needSet.SetApp(s.app)
 						}
 						if traceSpan, ok := v.(log.TraceSpan); ok {

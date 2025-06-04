@@ -129,7 +129,6 @@ type IServerSession interface {
 }
 
 // RPC传输时Context中的数据可能会需要赋值跨服务的app(为什么会有这个接口,会循环import)
-type CtxSessionSetApp interface {
+type ICtxTransSetApp interface {
 	SetApp(IApp)
-	GetSessionID() string
 }

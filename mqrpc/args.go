@@ -83,7 +83,7 @@ func Args2Bytes(arg interface{}) (string, []byte, error) {
 		// for context.Context with Specified types
 		if v2, ok := arg.(context.Context); ok {
 			maps := map[string]interface{}{} // 把支持trans的kv序列化到map中再编码进行传输
-			for k := range contextTransValues {
+			for k := range registedContextTransfer {
 				_v, _ok := v2.Value(k).(Marshaler)
 				if !_ok {
 					continue
@@ -184,7 +184,7 @@ func Bytes2Args(argsType string, args []byte) (interface{}, error) {
 		}
 		kvs := map[ContextTransKey]interface{}{}
 		for k, v := range mps {
-			makefun, ok := contextTransValues[ContextTransKey(k)]
+			makefun, ok := registedContextTransfer[ContextTransKey(k)]
 			if !ok {
 				continue
 			}

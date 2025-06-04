@@ -20,8 +20,11 @@ import (
 	"github.com/liangdas/mqant/module"
 )
 
+var App module.IApp = nil
+
 // CreateApp 创建mqant的app实例
 func CreateApp(opts ...module.Option) module.IApp {
-	opts = append(opts, module.Version(version))
-	return app.NewApp(opts...)
+	App = app.NewApp(append(opts, module.Version(version))...)
+	return App
+
 }
